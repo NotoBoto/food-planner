@@ -23,6 +23,7 @@
         <module>foodplanner-domain</module>
         <module>foodplanner-application</module>
         <module>foodplanner-infrastructure</module>
+        <module>foodplanner-api</module>
         <module>architecture-tests</module>
     </modules>
 
