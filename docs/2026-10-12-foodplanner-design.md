@@ -304,10 +304,15 @@ Ein falscher automatischer Treffer kann das Schaufenster deshalb nie erreichen.
   Kandidaten liefert `ALREADY_DECIDED` und erzeugt nichts.
 - **Identitäten kollidieren nie.** Ein Produkt aus Aldi-Quelle ist über
   `aldiSku` (eindeutig) identifiziert, ein Produkt aus Open Food Facts über
-  `offCode` (eindeutig).
+  `offCode` (eindeutig). Gehört der `offCode` eines Kandidaten bereits einem
+  Produkt, liefert die Freigabe `REFUSED_OFF_CODE_TAKEN`, erzeugt nichts und
+  lässt den Kandidaten `PENDING`.
 - **Ein Preis wird abgelöst, nie überschrieben.** Wird derselbe Artikel zu einem
   neuen Preis gescrapt, wird der alte `Price` auf `isCurrent = false` gesetzt
-  und ein neuer eingefügt. Das macht die Preishistorie möglich.
+  und ein neuer eingefügt. Das macht die Preishistorie möglich. Bei
+  unverändertem Preis entsteht kein neuer `Price`; nur `scrapedAt` des
+  aktuellen `Price` wird auf den neuen Scrape gesetzt, damit `lastScrapedAt`
+  (§5.1) den letzten Scrape zeigt.
 - **Ein eingehendes null löscht nie einen gespeicherten Wert.** Eine einzige
   Methode (`refreshScrapedFields`) darf auf eine bereits gespeicherte gescrapte
   Zeile schreiben, und sie schreibt ein Feld nur, wenn der eingehende Wert
@@ -398,7 +403,8 @@ einen aktuellen Preis: Die Browser-App lädt eine gespeicherte Einkaufsliste
 darunter ändert.
 
 `productCount` zählt die in der Suche sichtbaren Produkte. `lastScrapedAt` hält
-die Aktualität der Preise sichtbar.
+die Aktualität der Preise sichtbar: Es ist das größte `scrapedAt` der aktuellen
+Preise (`isCurrent`) dieser Produkte, bei leerem Katalog `null`.
 
 Der Health-Endpunkt ist Spring Boot Actuator, auf den Pfad `/health` gelegt.
 
@@ -430,7 +436,9 @@ POST /api/v1/shopping-list/summary
 `priceChangeCents = unitPriceCents − priceAtAddCents`.
 `priceDifferenceCents` ist die Summe von `priceChangeCents × quantity` über alle
 Zeilen. Produkte, die nicht mehr im Katalog sind, erscheinen in
-`missingProductKeys` und nicht in `lines`.
+`missingProductKeys` und nicht in `lines`. Als nicht mehr im Katalog gilt auch
+ein Produkt ohne aktuellen `Price` — dieselbe Sichtbarkeitsregel wie in der
+Suche.
 
 Die Summen werden serverseitig berechnet, damit die gesamte Geld- und
 Nährwertarithmetik in der unit-getesteten Schicht `domain` liegt und nicht in
@@ -448,6 +456,7 @@ POST /api/v1/admin/review/{itemId}/choose
        { "candidateId": 88 }
   → 204   gewählt oder bereits entschieden (idempotent)
   → 409   Kandidat hat keine Packungsgröße — kann kein Preis werden
+  → 409   `offCode` des Kandidaten gehört bereits einem Produkt
   → 404   Kandidat für diese gescrapte Zeile nicht gefunden
 
 POST /api/v1/admin/review/bulk-choose
@@ -588,6 +597,11 @@ und Open Food Facts ist eine einzige Einstellung (`http.user-agent`), die API
 und Ingestion gemeinsam lesen; beide starten nur, wenn er eine echte
 Kontaktadresse enthält.
 
+Fehlgeschlagene Anfragen werden bei `IOException`, HTTP 429 und 5xx bis zu
+dreimal wiederholt, mit 1 s, 2 s und 4 s Wartezeit über den injizierten
+Sleeper; ein `Retry-After`-Header hat Vorrang, andere 4xx-Antworten sind sofort
+ein Fehler. Die Werte sind konfigurierbar.
+
 ### 6.1 `scrape aldi`
 
 Der Scraper liest zuerst `robots.txt` (crawler-commons,
@@ -649,7 +663,9 @@ auch Produkte aus dem Open-Food-Facts-Pfad ihre Einheit von Aldi erhalten.
 **Packungsgröße**, genaueste Quelle zuerst: aus dem Preispaar
 (`Betrag / Vergleich × 1000`, wenn die Vergleichseinheit `/1 kg` oder `/1 l`
 ist), dann `sellingSize`, dann die Größe im gescrapten Namen. Eine Größe unter
-1 g oder über 50 000 g wird verworfen und die nächste Quelle versucht.
+1 g oder über 50 000 g wird verworfen und die nächste Quelle versucht. Die
+Rechnung aus dem Preispaar läuft in `BigDecimal` und wird auf ganze Gramm
+gerundet (`RoundingMode.HALF_UP`).
 
 Jede Zeile wird anschließend validiert (Preis 1…100 000 Cent, nichtleerer Name
 mit höchstens 300 Zeichen, URL mit höchstens 1000), und Zeilen in einer
@@ -753,6 +769,12 @@ Preishistorie nach `data/seed/products.json`. Der Seed-Loader der API liest
 diese Datei beim ersten Start in eine leere Datenbank. Produkte werden im Seed
 über `productKey` identifiziert, nicht über ihre ID.
 
+Die Datei hat die Form `{ "version": 1, "products": [ … ] }` in camelCase,
+eingerückt, Produkte nach `productKey` und Preishistorie nach `scrapedAt`
+sortiert, ohne Exportzeitpunkt: Ein erneuter Export ohne Datenänderung erzeugt
+eine byte-identische Datei und damit keinen Diff. Der Seed-Loader prüft
+`version`.
+
 ## 7. Frontend
 
 React 19, Vite, TypeScript, TanStack Query für den API-Zustand, Tailwind 4 für
@@ -762,14 +784,18 @@ Oberfläche ist auf Deutsch.
 
 Die TypeScript-Typen der API werden mit `openapi-typescript` aus der
 springdoc-Spezifikation generiert. Ändert sich ein DTO in Java, baut das
-Frontend nicht mehr, statt still vom Backend abzuweichen.
+Frontend nicht mehr, statt still vom Backend abzuweichen. Der Maven-Build der
+API exportiert die Spezifikation nach `web/openapi.json`, die committet wird;
+ein Test schlägt fehl, wenn die Datei veraltet ist. Das Frontend generiert die
+Typen aus dieser Datei und baut damit ohne laufende API.
 
 ### 7.1 Ansichten
 
 1. `/` — Suche. Eingabe mit 300 ms Debounce, Filterleiste (Kategorie,
    Preisspanne, Mindest-Eiweiß, Sortierung), Kartenraster, Seitennavigation,
    „zur Liste hinzufügen" auf jeder Karte. Dasselbe Eingabefeld akzeptiert eine
-   EAN.
+   EAN. Unter dem Suchfeld stehen die Zahl der Produkte und das Datum der
+   Preise aus `GET /catalog/info` (§11).
 2. `/product/:id` — Detail: vollständige Nährwerte „pro 100 g" bzw. „pro
    100 ml", Packungsgröße in g / kg bzw. ml / l, Kilo- bzw. Literpreis, aktueller
    Preis, Preishistorie als Tabelle, die EAN (wo vorhanden), die Aldi-Abteilung,
@@ -810,7 +836,9 @@ einem neutralen Platzhalter, wenn die Quelle kein Bild hat oder es nicht lädt.
 
 `version` wird zuerst von einem zod-Schema geprüft. Ein fremdes oder
 zukünftiges Format wird abgelehnt, statt die aktuelle Liste unbemerkt zu
-beschädigen. Alle Felder einer Zeile sind Pflicht.
+beschädigen. Alle Felder einer Zeile sind Pflicht. Pro `productKey` gibt es
+höchstens eine Zeile: Ein Produkt erneut hinzuzufügen erhöht seine Menge um 1,
+`priceAtAddCents` und `addedAt` bleiben.
 
 `web/src/limits.ts` spiegelt die Grenzen des Servers (200 Einträge, Menge
 1…1000, Budget innerhalb von `Integer.MAX_VALUE`, Preis 1…100 000 Cent), sodass
@@ -831,6 +859,8 @@ Export und Import sind auch der Weg, mehrere Listen zu führen.
   `POST /products/batch`, um zu bestätigen, dass die Schlüssel noch existieren.
   Produkte, die nicht mehr existieren, werden in einem Block „nicht mehr im
   Katalog" aufgeführt; der Rest wird geladen. Nichts wird unbemerkt verworfen.
+  Der Import ersetzt Liste und Ziele; ist die aktuelle Liste nicht leer, fragt
+  die Oberfläche vorher nach.
 - **PNG-Export** — `html-to-image` erfasst einen eigens dafür gebauten,
   druckbaren Kartenknoten statt der Live-Oberfläche, sodass keine Bedienelemente
   oder Scrollleisten im Bild landen.
@@ -888,6 +918,10 @@ das Schema beim Start, und der Katalog befüllt sich aus `data/seed/products.jso
 wenn er leer ist (`seed.path` zeigt auf die im Image eingebaute Kopie). Die
 CORS-Origins kommen aus `cors.allowed-origins` — Standard ist der Vite-Dev-Server,
 in `docker compose` der Origin des Web-Containers.
+
+Die Datenbank läuft auf Port 5432 mit Datenbank, Benutzer und Passwort
+`foodplanner`. Die Werte lassen sich über `POSTGRES_*` überschreiben; die
+Standardwerte stehen in der Compose-Datei, sodass die Demo ohne `.env` startet.
 
 ### 9.2 Entwicklung
 
