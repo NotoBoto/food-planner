@@ -1,6 +1,7 @@
 package de.foodplanner.ingestion;
 
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,8 @@ public class SpringPicocliFactory implements CommandLine.IFactory {
     public <K> K create(Class<K> cls) throws Exception {
         try {
             return context.getBean(cls);
+        } catch (NoUniqueBeanDefinitionException e) {
+            throw e;
         } catch (NoSuchBeanDefinitionException e) {
             return CommandLine.defaultFactory().create(cls);
         }

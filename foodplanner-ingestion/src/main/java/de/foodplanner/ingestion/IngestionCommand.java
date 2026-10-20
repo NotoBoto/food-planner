@@ -2,8 +2,9 @@ package de.foodplanner.ingestion;
 
 import org.springframework.stereotype.Component;
 
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Spec;
 
 @Component
 @Command(
@@ -13,8 +14,11 @@ import picocli.CommandLine.Command;
         description = "FoodPlanner-Ingestion: scrape, search-off, review, seed export.")
 public class IngestionCommand implements Runnable {
 
+    @Spec
+    CommandSpec spec;
+
     @Override
     public void run() {
-        new CommandLine(this).usage(System.out);
+        spec.commandLine().usage(spec.commandLine().getOut());
     }
 }

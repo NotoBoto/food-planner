@@ -24,9 +24,13 @@ class IngestionApplicationTests {
     @Autowired
     SpringPicocliFactory factory;
 
+    @Autowired
+    IngestionRunner runner;
+
     @Test
     void runWithoutArgumentsPrintsUsage(CapturedOutput output) {
-        // Runner ist beim Kontextstart bereits ohne Argumente gelaufen
+        runner.run();
+        assertThat(runner.getExitCode()).isZero();
         assertThat(output.getOut()).contains("Usage: foodplanner-ingestion");
     }
 
