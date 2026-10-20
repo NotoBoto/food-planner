@@ -153,7 +153,10 @@ den Composition Roots eingebunden.
 `spring-tx` und `jakarta.validation-api` verwenden (`@Service`,
 `@Transactional`, `@Validated`). Sie darf nichts aus Spring Web, JDBC, JPA oder
 einem HTTP-Client verwenden und weiß nichts von PostgreSQL, HTTP oder Open Food
-Facts. Diese Grenze ist eine ArchUnit-Regel.
+Facts. Diese Grenze ist eine ArchUnit-Regel. Außerdem erlaubt sind die
+Null-Annotationen von JSpecify (`@NullMarked`), die Spring 7 selbst verwendet,
+und die Logging-API SLF4J. `domain` verwendet beides nicht und bleibt bei
+reinen JDK-Klassen.
 
 **Ports:** `ProductRepository`, `ReviewRepository`, `ScrapedPageRepository`,
 `OffCatalog`, `PriceScraper`, `ProductSearch`. Die Suche läuft von Anfang an
@@ -578,11 +581,16 @@ Pipeline-Commands laufen der Reihe nach, und jeder arbeitet auf dem Zustand, den
 der vorherige in der Datenbank hinterlassen hat, statt Dateien weiterzureichen.
 
 ```
-java -jar foodplanner-ingestion.jar scrape aldi [--fetch] [--full]
-java -jar foodplanner-ingestion.jar search-off
-java -jar foodplanner-ingestion.jar review
-java -jar foodplanner-ingestion.jar seed export
+java -jar foodplanner-ingestion-exec.jar scrape aldi [--fetch] [--full]
+java -jar foodplanner-ingestion-exec.jar search-off
+java -jar foodplanner-ingestion-exec.jar review
+java -jar foodplanner-ingestion-exec.jar seed export
 ```
+
+Ausführbar ist nur das Jar mit dem Classifier `exec`
+(`foodplanner-ingestion/target/foodplanner-ingestion-<version>-exec.jar`); das
+Hauptartefakt ist ein normales Jar ohne `Main-Class`, damit `architecture-tests`
+die Klassen lesen kann. Dasselbe gilt für `foodplanner-api`.
 
 In der Entwicklung alternativ über
 `./mvnw -pl foodplanner-ingestion spring-boot:run -Dspring-boot.run.arguments="scrape aldi"`
@@ -912,7 +920,7 @@ docker compose down -v             # stoppen und die Datenbank verwerfen
 ```
 
 Das Dockerfile der API baut mehrstufig: Maven im Build-Stage, Ausführung auf
-`eclipse-temurin:25-jre`. Die API ist direkt unter <http://localhost:5199>
+`eclipse-temurin:25-jre`; ins Laufzeit-Image kommt das `*-exec.jar` (§6). Die API ist direkt unter <http://localhost:5199>
 erreichbar, mit Swagger UI (springdoc) unter `/swagger-ui.html`. Flyway migriert
 das Schema beim Start, und der Katalog befüllt sich aus `data/seed/products.json`,
 wenn er leer ist (`seed.path` zeigt auf die im Image eingebaute Kopie). Die
