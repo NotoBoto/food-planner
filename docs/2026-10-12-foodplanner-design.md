@@ -30,7 +30,7 @@ gesamte Design prägen:
   vorführbar sein.** Jeder Scrape-Lauf und jede Suche in Open Food Facts wird
   als Snapshot unter `data/snapshots/` abgelegt und committet, und der Katalog
   befüllt sich selbst aus `data/seed/products.json`. Zum Bauen der Container
-  ist Netzwerkzugriff nötig (Basis-Images, Gradle-Abhängigkeiten, npm); zum
+  ist Netzwerkzugriff nötig (Basis-Images, Maven-Abhängigkeiten, npm); zum
   Betrieb nicht.
 - **Die Architektur soll erkennbare Muster demonstrieren.** Clean Architecture
   mit getrennten Commands und Queries pro Use Case wird einem einfachen
@@ -125,7 +125,7 @@ In der Reihenfolge, in der sie umgesetzt werden (Details in §10):
 
 ### 3.1 Module
 
-Java 21, Spring Boot 3, Gradle (Kotlin DSL) als Multi-Modul-Build.
+Java 25, Spring Boot 4.1, Maven (mit Maven Wrapper) als Multi-Modul-Build.
 
 ```
 foodplanner-domain          Entitäten und Value Objects (Records), reine Arithmetik.
@@ -576,7 +576,9 @@ java -jar foodplanner-ingestion.jar seed export
 ```
 
 In der Entwicklung alternativ über
-`./gradlew :foodplanner-ingestion:bootRun --args="scrape aldi"`.
+`./mvnw -pl foodplanner-ingestion spring-boot:run -Dspring-boot.run.arguments="scrape aldi"`
+(nach einmaligem `./mvnw install -DskipTests`, damit die Nachbarmodule im lokalen
+Repository liegen).
 
 Gemeinsame Infrastruktur: HTTP über den eingebauten `java.net.http.HttpClient`;
 Nebenläufigkeit über Virtual Threads mit einem `Semaphore`; alle Wartezeiten und
@@ -879,8 +881,8 @@ ADMIN_KEY=choose-something docker compose up --build   # Admin-Endpunkte nutzbar
 docker compose down -v             # stoppen und die Datenbank verwerfen
 ```
 
-Das Dockerfile der API baut mehrstufig: Gradle im Build-Stage, Ausführung auf
-`eclipse-temurin:21-jre`. Die API ist direkt unter <http://localhost:5199>
+Das Dockerfile der API baut mehrstufig: Maven im Build-Stage, Ausführung auf
+`eclipse-temurin:25-jre`. Die API ist direkt unter <http://localhost:5199>
 erreichbar, mit Swagger UI (springdoc) unter `/swagger-ui.html`. Flyway migriert
 das Schema beim Start, und der Katalog befüllt sich aus `data/seed/products.json`,
 wenn er leer ist (`seed.path` zeigt auf die im Image eingebaute Kopie). Die
@@ -894,7 +896,8 @@ zu langsam ist:
 
 ```bash
 docker compose up -d db
-./gradlew :foodplanner-api:bootRun
+./mvnw install -DskipTests            # einmalig bzw. nach Änderungen an Nachbarmodulen
+./mvnw -pl foodplanner-api spring-boot:run
 cd web && npm install && npm run dev      # http://localhost:5173, /api wird durchgereicht
 ```
 
@@ -1063,8 +1066,8 @@ nicht committet. Der Seed-Schritt bettet den befüllten Katalog beim ersten Star
 ein.
 
 **Tests.** Modellabhängige Tests tragen `@Tag("requires-model")` und sind im
-Standard-Gradle-Lauf ausgeschlossen; sie prüfen Form und Determinismus der
-Embeddings, die Vektorsuche mit der Distanzgrenze und einen kleinen festen
+Standard-Maven-Lauf ausgeschlossen (Surefire `excludedGroups`); sie prüfen Form
+und Determinismus der Embeddings, die Vektorsuche mit der Distanzgrenze und einen kleinen festen
 Ausschnitt des Abfragesatzes als Untergrenze gegen Regressionen. Fehlt die
 Modelldatei, werden sie mit einem Hinweis auf `scripts/fetch-model`
 übersprungen. Ohne Modell: Reciprocal Rank Fusion und der Bonus für exakte
@@ -1230,7 +1233,7 @@ alles Weitere wird auf echten Daten gebaut. Abgabe ist um den 15.12.2026
 
 | Phase | KW | Inhalt | Ergebnis |
 |---|---|---|---|
-| 0. Gerüst | 42 | Gradle-Module, ArchUnit-Regeln, `docker compose` mit Datenbank, erste Flyway-Migration | Leeres Projekt baut, Tests grün |
+| 0. Gerüst | 42 | Maven-Module, ArchUnit-Regeln, `docker compose` mit Datenbank, erste Flyway-Migration | Leeres Projekt baut, Tests grün |
 | 1. Aldi-Daten | 42–44 | `robots.txt` und Sitemap, Seitenparser, Nuxt-Resolver, Einheit und Packungsgröße, Snapshots; erster Live-Lauf mit 300 Produkten (§9.3) | Snapshot und Fixtures committet, §1.1 geprüft |
 | 2. Katalog und Review | 44–45 | Verzweigung beim Schreiben, `search-off` mit Konfidenzformel und Zeitbudget, Konsolen-`review`, `seed export` | Befüllte Datenbank, `products.json` committet |
 | 3. API | 46 | Lexikalische und EAN-Suche, Detail, Batch, Listenzusammenfassung, `catalog/info`, Admin-Endpunkte, `ProblemDetail`, Admin-Filter, Abfragesatz | Vertrag aus §5 vollständig getestet |
