@@ -25,7 +25,9 @@ class ArchitectureRulesTest {
         for (ArchRule rule : List.of(
                 ArchitectureRules.dependenciesPointInward(root("allowed")),
                 ArchitectureRules.domainOnlyUsesJdk(root("allowed")),
-                ArchitectureRules.domainUsesNoHttpOrSql(root("allowed")))) {
+                ArchitectureRules.domainUsesNoHttpOrSql(root("allowed")),
+                ArchitectureRules.applicationOnlyUsesAllowedLibraries(root("allowed")),
+                ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(root("allowed")))) {
             EvaluationResult result = rule.evaluate(classes);
             assertThat(result.hasViolation())
                     .as(rule.getDescription() + "\n" + result.getFailureReport())
@@ -56,6 +58,30 @@ class ArchitectureRulesTest {
             "rootsisolated, CrossEndpoint"})
     void dependenciesMustPointInward(String fixtureName, String offender) {
         assertViolation(ArchitectureRules.dependenciesPointInward(root(fixtureName)), fixture(fixtureName), offender);
+    }
+
+    @Test
+    void applicationMustNotUseWebJdbcJpaOrHttpClient() {
+        assertViolation(ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(root("applicationio")),
+                fixture("applicationio"),
+                "java.net.http.HttpClient", "java.net.HttpURLConnection", "javax.net.ssl.HttpsURLConnection",
+                "java.sql.Connection", "javax.sql.DataSource", "org.springframework.web.client.RestClient",
+                "org.springframework.http.HttpHeaders", "org.springframework.jdbc.core.simple.JdbcClient",
+                "jakarta.persistence.EntityManager");
+    }
+
+    @Test
+    void applicationMustNotUseSpringCoreOrBeans() {
+        assertViolation(ArchitectureRules.applicationOnlyUsesAllowedLibraries(root("applicationspringcore")),
+                fixture("applicationspringcore"),
+                "org.springframework.beans.factory.annotation.Autowired", "org.springframework.core.env.Environment");
+    }
+
+    @Test
+    void applicationMustNotUseHibernateValidator() {
+        assertViolation(ArchitectureRules.applicationOnlyUsesAllowedLibraries(root("applicationhibernate")),
+                fixture("applicationhibernate"),
+                "org.hibernate.validator.constraints.Length");
     }
 
     private static void assertViolation(ArchRule rule, JavaClasses classes, String... expectedInReport) {

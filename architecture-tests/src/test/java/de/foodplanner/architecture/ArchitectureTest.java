@@ -19,4 +19,12 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule domainUsesNoHttpOrSql = ArchitectureRules.domainUsesNoHttpOrSql(ArchitectureRules.ROOT);
+
+    @ArchTest
+    static final ArchRule applicationOnlyUsesAllowedLibraries =
+            ArchitectureRules.applicationOnlyUsesAllowedLibraries(ArchitectureRules.ROOT);
+
+    @ArchTest
+    static final ArchRule applicationUsesNoWebJdbcJpaOrHttpClient =
+            ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(ArchitectureRules.ROOT);
 }
