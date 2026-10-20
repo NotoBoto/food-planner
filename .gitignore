@@ -1,20 +1,19 @@
-# ---------- Java / Gradle ----------
+# ---------- Java / Maven ----------
 *.class
 *.log
 hs_err_pid*
 replay_pid*
 
-.gradle/
-build/
+target/
 out/
 bin/
 
-# Package files (keep the Gradle wrapper)
+# Package files (keep the Maven wrapper)
 *.jar
 *.war
 *.nar
 *.ear
-!gradle/wrapper/gradle-wrapper.jar
+!.mvn/wrapper/maven-wrapper.jar
 
 # Archives
 *.zip
