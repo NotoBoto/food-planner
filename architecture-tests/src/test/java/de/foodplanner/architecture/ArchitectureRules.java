@@ -7,7 +7,14 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
 import com.tngtech.archunit.lang.ArchRule;
-import java.net.HttpURLConnection;
+import com.tngtech.archunit.lang.syntax.elements.ClassesShouldConjunction;
+import java.net.DatagramSocket;
+import java.net.Proxy;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.channels.NetworkChannel;
 
 /**
  * Die ArchUnit-Regeln für die Abhängigkeitsrichtung aus §3.1. Jede Regel nimmt das Wurzelpaket als Parameter, damit
@@ -51,12 +58,11 @@ final class ArchitectureRules {
     static ArchRule domainOnlyUsesJdk(String root) {
         return classes().that().resideInAPackage(root + ".domain..")
                 .should().onlyDependOnClassesThat().resideInAnyPackage("java..", root + ".domain..")
-                .because("§3.1: domain hat keine Abhängigkeiten");
+                .because("§3.1: domain hat keine Abhängigkeiten, auch keine Null-Annotationen");
     }
 
-    static ArchRule domainUsesNoHttpOrSql(String root) {
-        return noClasses().that().resideInAPackage(root + ".domain..")
-                .should().dependOnClassesThat().resideInAnyPackage("java.net.http..", "java.sql..")
+    static ArchRule domainUsesNoNetworkOrJdbc(String root) {
+        return noNetworkOrJdbc(root + ".domain..")
                 .because("§3.1: domain enthält Entitäten und reine Arithmetik, kein HTTP und kein JDBC");
     }
 
@@ -75,21 +81,34 @@ final class ArchitectureRules {
                         // nur die Validierungs-API, nicht Hibernate Validator
                         "jakarta.validation..",
                         // Null-Annotationen (@NullMarked), wie Spring 7 sie selbst verwendet
-                        "org.jspecify.annotations..")
+                        "org.jspecify.annotations..",
+                        // Logging-API, die Spring Boot an Logback bindet
+                        "org.slf4j")
                 .because("§3.1/§11: application nutzt von Spring nur spring-context, spring-tx und die Validierungs-API");
     }
 
-    static ArchRule applicationUsesNoWebJdbcJpaOrHttpClient(String root) {
-        return noClasses().that().resideInAPackage(root + ".application..")
-                .should().dependOnClassesThat(resideInAnyPackage(
-                                "java.net.http..",
-                                "java.sql..",
-                                "javax.sql..",
-                                "org.springframework.web..",
-                                "org.springframework.http..",
-                                "org.springframework.jdbc..",
-                                "jakarta.persistence..")
-                        .or(assignableTo(HttpURLConnection.class)))
+    static ArchRule applicationUsesNoNetworkOrJdbc(String root) {
+        // Spring Web, JDBC, JPA und javax.* schließt schon applicationOnlyUsesAllowedLibraries aus
+        return noNetworkOrJdbc(root + ".application..")
                 .because("§3.1: application verwendet nichts aus Spring Web, JDBC, JPA oder einem HTTP-Client");
+    }
+
+    /**
+     * Netzwerk und JDBC aus dem JDK, also alles, was die Allowlist {@code java..} durchlässt. {@link URL} selbst
+     * bleibt erlaubt, nur die Aufrufe, die eine Verbindung öffnen, nicht.
+     */
+    private static ClassesShouldConjunction noNetworkOrJdbc(String layerPackage) {
+        return noClasses().that().resideInAPackage(layerPackage)
+                .should().dependOnClassesThat(resideInAnyPackage("java.net.http..", "java.sql..")
+                        .or(assignableTo(URLConnection.class))
+                        .or(assignableTo(Socket.class))
+                        .or(assignableTo(ServerSocket.class))
+                        .or(assignableTo(DatagramSocket.class))
+                        .or(assignableTo(NetworkChannel.class)))
+                .orShould().callMethod(URL.class, "openConnection")
+                .orShould().callMethod(URL.class, "openConnection", Proxy.class)
+                .orShould().callMethod(URL.class, "openStream")
+                .orShould().callMethod(URL.class, "getContent")
+                .orShould().callMethod(URL.class, "getContent", Class[].class);
     }
 }

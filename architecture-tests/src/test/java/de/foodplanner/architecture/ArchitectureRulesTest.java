@@ -9,7 +9,7 @@ import com.tngtech.archunit.lang.EvaluationResult;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Prüft die Regeln gegen Fixture-Pakete unter {@code fixtures.<fall>}, die wie die echten Module gegliedert sind.
@@ -19,6 +19,13 @@ class ArchitectureRulesTest {
 
     private static final String FIXTURES = "de.foodplanner.architecture.fixtures";
 
+    private static final JavaClasses OUTWARD = fixture("outward");
+
+    private static final String[] NETWORK_OR_JDBC = {
+            "java.net.http.HttpClient", "java.net.HttpURLConnection", "java.net.Socket", "java.net.ServerSocket",
+            "java.net.DatagramSocket", "java.nio.channels.SocketChannel", "java.sql.Connection",
+            "java.net.URL.openStream()", "java.net.URL.openConnection()", "java.net.URL.getContent()"};
+
     @Test
     void allRulesAcceptAllowedFixture() {
         JavaClasses classes = fixture("allowed");
@@ -26,9 +33,9 @@ class ArchitectureRulesTest {
                 ArchitectureRules.classesResideInModulePackages(root("allowed")),
                 ArchitectureRules.dependenciesPointInward(root("allowed")),
                 ArchitectureRules.domainOnlyUsesJdk(root("allowed")),
-                ArchitectureRules.domainUsesNoHttpOrSql(root("allowed")),
+                ArchitectureRules.domainUsesNoNetworkOrJdbc(root("allowed")),
                 ArchitectureRules.applicationOnlyUsesAllowedLibraries(root("allowed")),
-                ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(root("allowed")))) {
+                ArchitectureRules.applicationUsesNoNetworkOrJdbc(root("allowed")))) {
             EvaluationResult result = rule.evaluate(classes);
             assertThat(result.hasViolation())
                     .as(rule.getDescription() + "\n" + result.getFailureReport())
@@ -50,32 +57,51 @@ class ArchitectureRulesTest {
     }
 
     @Test
-    void domainMustNotUseHttpClientOrJdbc() {
-        // java.. ist für domain erlaubt; erst die zweite Regel schließt HTTP-Client und JDBC aus
-        assertThat(ArchitectureRules.domainOnlyUsesJdk(root("domainhttpsql"))
-                .evaluate(fixture("domainhttpsql")).hasViolation()).isFalse();
-        assertViolation(ArchitectureRules.domainUsesNoHttpOrSql(root("domainhttpsql")), fixture("domainhttpsql"),
-                "java.net.http.HttpClient", "java.sql.Connection");
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "domainoutward, OutwardDomain",
-            "applicationoutward, OutwardHandler",
-            "infrastructureoutward, OutwardAdapter",
-            "rootsisolated, CrossEndpoint"})
-    void dependenciesMustPointInward(String fixtureName, String offender) {
-        assertViolation(ArchitectureRules.dependenciesPointInward(root(fixtureName)), fixture(fixtureName), offender);
+    void domainMustNotUseNullAnnotations() {
+        assertViolation(ArchitectureRules.domainOnlyUsesJdk(root("domainnullmarked")), fixture("domainnullmarked"),
+                "org.jspecify.annotations.NullMarked");
     }
 
     @Test
-    void applicationMustNotUseWebJdbcJpaOrHttpClient() {
-        assertViolation(ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(root("applicationio")),
+    void domainMustNotUseNetworkOrJdbc() {
+        // java.. ist für domain erlaubt; erst die zweite Regel schließt Netzwerk und JDBC aus
+        JavaClasses classes = fixture("domainnetwork");
+        assertThat(ArchitectureRules.domainOnlyUsesJdk(root("domainnetwork")).evaluate(classes).hasViolation())
+                .isFalse();
+        assertViolation(ArchitectureRules.domainUsesNoNetworkOrJdbc(root("domainnetwork")), classes, NETWORK_OR_JDBC);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "OutwardDomain.toApplication",
+            "OutwardDomain.toInfrastructure",
+            "OutwardDomain.toApi",
+            "OutwardDomain.toIngestion",
+            "OutwardHandler.toInfrastructure",
+            "OutwardHandler.toApi",
+            "OutwardHandler.toIngestion",
+            "OutwardAdapter.toApi",
+            "OutwardAdapter.toIngestion",
+            "OutwardEndpoint.toIngestion",
+            "OutwardCommand.toApi"})
+    void dependenciesMustPointInward(String forbiddenField) {
+        // ein Feld je verbotener Kante, damit jede Schichtgrenze einzeln geprüft ist
+        assertViolation(ArchitectureRules.dependenciesPointInward(root("outward")), OUTWARD, forbiddenField + ">");
+    }
+
+    @Test
+    void applicationMustNotUseNetworkOrJdbc() {
+        assertViolation(ArchitectureRules.applicationUsesNoNetworkOrJdbc(root("applicationnetwork")),
+                fixture("applicationnetwork"), NETWORK_OR_JDBC);
+    }
+
+    @Test
+    void applicationMustNotUseWebJdbcOrJpa() {
+        assertViolation(ArchitectureRules.applicationOnlyUsesAllowedLibraries(root("applicationio")),
                 fixture("applicationio"),
-                "java.net.http.HttpClient", "java.net.HttpURLConnection", "javax.net.ssl.HttpsURLConnection",
-                "java.sql.Connection", "javax.sql.DataSource", "org.springframework.web.client.RestClient",
-                "org.springframework.http.HttpHeaders", "org.springframework.jdbc.core.simple.JdbcClient",
-                "jakarta.persistence.EntityManager");
+                "javax.net.ssl.HttpsURLConnection", "javax.sql.DataSource",
+                "org.springframework.web.client.RestClient", "org.springframework.http.HttpHeaders",
+                "org.springframework.jdbc.core.simple.JdbcClient", "jakarta.persistence.EntityManager");
     }
 
     @Test

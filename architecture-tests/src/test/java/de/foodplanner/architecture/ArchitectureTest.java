@@ -7,6 +7,10 @@ import com.tngtech.archunit.lang.ArchRule;
 
 /**
  * Wendet die Regeln aus {@link ArchitectureRules} auf die Produktionsklassen aller Module an.
+ *
+ * <p>domain und application haben noch keine Klassen; ihre Regeln dürfen deshalb vorerst leer bestehen. Sobald ein
+ * Modul seine erste Klasse hat, {@code allowEmptyShould(true)} bei seinen Regeln entfernen und die Klasse in
+ * {@link ModuleImportTest} aufnehmen (#8, #9).
  */
 @AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
@@ -19,16 +23,18 @@ class ArchitectureTest {
     static final ArchRule dependenciesPointInward = ArchitectureRules.dependenciesPointInward(ArchitectureRules.ROOT);
 
     @ArchTest
-    static final ArchRule domainOnlyUsesJdk = ArchitectureRules.domainOnlyUsesJdk(ArchitectureRules.ROOT);
+    static final ArchRule domainOnlyUsesJdk =
+            ArchitectureRules.domainOnlyUsesJdk(ArchitectureRules.ROOT).allowEmptyShould(true);
 
     @ArchTest
-    static final ArchRule domainUsesNoHttpOrSql = ArchitectureRules.domainUsesNoHttpOrSql(ArchitectureRules.ROOT);
+    static final ArchRule domainUsesNoNetworkOrJdbc =
+            ArchitectureRules.domainUsesNoNetworkOrJdbc(ArchitectureRules.ROOT).allowEmptyShould(true);
 
     @ArchTest
     static final ArchRule applicationOnlyUsesAllowedLibraries =
-            ArchitectureRules.applicationOnlyUsesAllowedLibraries(ArchitectureRules.ROOT);
+            ArchitectureRules.applicationOnlyUsesAllowedLibraries(ArchitectureRules.ROOT).allowEmptyShould(true);
 
     @ArchTest
-    static final ArchRule applicationUsesNoWebJdbcJpaOrHttpClient =
-            ArchitectureRules.applicationUsesNoWebJdbcJpaOrHttpClient(ArchitectureRules.ROOT);
+    static final ArchRule applicationUsesNoNetworkOrJdbc =
+            ArchitectureRules.applicationUsesNoNetworkOrJdbc(ArchitectureRules.ROOT).allowEmptyShould(true);
 }

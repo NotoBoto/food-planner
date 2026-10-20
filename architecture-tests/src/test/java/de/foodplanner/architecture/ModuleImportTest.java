@@ -8,8 +8,9 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 
 /**
- * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Ohne diesen Test bestünden alle Regeln
- * leer, sobald der Import nichts findet ({@code archRule.failOnEmptyShould=false}).
+ * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Die Regeln für domain und application
+ * bestehen vorerst auch leer ({@code allowEmptyShould(true)} in {@link ArchitectureTest}); fiele ein Modul aus dem
+ * Import, bemerkte das sonst keine Regel.
  */
 @AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ModuleImportTest {
