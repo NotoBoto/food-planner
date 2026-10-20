@@ -20,6 +20,17 @@ final class ArchitectureRules {
     private ArchitectureRules() {
     }
 
+    static ArchRule classesResideInModulePackages(String root) {
+        return classes().that().resideInAPackage(root + "..")
+                .should().resideInAnyPackage(
+                        root + ".domain..",
+                        root + ".application..",
+                        root + ".infrastructure..",
+                        root + ".api..",
+                        root + ".ingestion..")
+                .because("die übrigen Regeln greifen nur in den Modulpaketen aus §3.1");
+    }
+
     static ArchRule dependenciesPointInward(String root) {
         return layeredArchitecture()
                 .consideringOnlyDependenciesInLayers()

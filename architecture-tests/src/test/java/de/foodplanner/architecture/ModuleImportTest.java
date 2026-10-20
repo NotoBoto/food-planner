@@ -11,7 +11,7 @@ import com.tngtech.archunit.junit.ArchTest;
  * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Ohne diesen Test bestünden alle Regeln
  * leer, sobald der Import nichts findet ({@code archRule.failOnEmptyShould=false}).
  */
-@AnalyzeClasses(packages = "de.foodplanner", importOptions = ImportOption.DoNotIncludeTests.class)
+@AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ModuleImportTest {
 
     @ArchTest

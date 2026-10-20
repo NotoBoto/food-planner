@@ -23,6 +23,7 @@ class ArchitectureRulesTest {
     void allRulesAcceptAllowedFixture() {
         JavaClasses classes = fixture("allowed");
         for (ArchRule rule : List.of(
+                ArchitectureRules.classesResideInModulePackages(root("allowed")),
                 ArchitectureRules.dependenciesPointInward(root("allowed")),
                 ArchitectureRules.domainOnlyUsesJdk(root("allowed")),
                 ArchitectureRules.domainUsesNoHttpOrSql(root("allowed")),
@@ -33,6 +34,13 @@ class ArchitectureRulesTest {
                     .as(rule.getDescription() + "\n" + result.getFailureReport())
                     .isFalse();
         }
+    }
+
+    @Test
+    void classesMustResideInModulePackages() {
+        // sonst entginge z. B. ein HTTP-Client in de.foodplanner.support allen Schichtregeln
+        assertViolation(ArchitectureRules.classesResideInModulePackages(root("outsidelayer")), fixture("outsidelayer"),
+                "outsidelayer.support.Leak");
     }
 
     @Test

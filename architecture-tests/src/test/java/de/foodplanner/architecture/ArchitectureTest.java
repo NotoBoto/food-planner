@@ -12,6 +12,10 @@ import com.tngtech.archunit.lang.ArchRule;
 class ArchitectureTest {
 
     @ArchTest
+    static final ArchRule classesResideInModulePackages =
+            ArchitectureRules.classesResideInModulePackages(ArchitectureRules.ROOT);
+
+    @ArchTest
     static final ArchRule dependenciesPointInward = ArchitectureRules.dependenciesPointInward(ArchitectureRules.ROOT);
 
     @ArchTest
