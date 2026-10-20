@@ -73,7 +73,9 @@ final class ArchitectureRules {
                         // spring-tx
                         "org.springframework.transaction..",
                         // nur die Validierungs-API, nicht Hibernate Validator
-                        "jakarta.validation..")
+                        "jakarta.validation..",
+                        // Null-Annotationen (@NullMarked), wie Spring 7 sie selbst verwendet
+                        "org.jspecify.annotations..")
                 .because("§3.1/§11: application nutzt von Spring nur spring-context, spring-tx und die Validierungs-API");
     }
 
