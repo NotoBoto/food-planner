@@ -24,7 +24,9 @@ class ArchitectureRulesTest {
     private static final String[] NETWORK_OR_JDBC = {
             "java.net.http.HttpClient", "java.net.HttpURLConnection", "java.net.Socket", "java.net.ServerSocket",
             "java.net.DatagramSocket", "java.nio.channels.SocketChannel", "java.sql.Connection",
-            "java.net.URL.openStream()", "java.net.URL.openConnection()", "java.net.URL.getContent()"};
+            "java.net.InetAddress", "java.net.InetSocketAddress", "java.net.NetworkInterface", "java.rmi.Naming",
+            "java.net.URL.openStream()", "java.net.URL.openConnection()", "java.net.URL.openConnection(java.net.Proxy)",
+            "java.net.URL.getContent()", "java.net.URL.getContent([Ljava.lang.Class;)"};
 
     @Test
     void allRulesAcceptAllowedFixture() {

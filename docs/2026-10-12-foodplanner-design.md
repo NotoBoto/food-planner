@@ -151,7 +151,8 @@ den Composition Roots eingebunden.
 
 **Spring in `application`.** Die Schicht `application` darf `spring-context`,
 `spring-tx` und `jakarta.validation-api` verwenden (`@Service`,
-`@Transactional`, `@Validated`). Sie darf nichts aus Spring Web, JDBC, JPA oder
+`@Transactional`, `@Validated`, aus `spring-context` außerdem `@Async`,
+`@Scheduled` und `@Cacheable`). Sie darf nichts aus Spring Web, JDBC, JPA oder
 einem HTTP-Client verwenden und weiß nichts von PostgreSQL, HTTP oder Open Food
 Facts. Diese Grenze ist eine ArchUnit-Regel. Außerdem erlaubt sind die
 Null-Annotationen von JSpecify (`@NullMarked`), die Spring 7 selbst verwendet,

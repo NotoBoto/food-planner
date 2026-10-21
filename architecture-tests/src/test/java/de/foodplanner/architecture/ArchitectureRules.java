@@ -9,9 +9,12 @@ import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.syntax.elements.ClassesShouldConjunction;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.Proxy;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.channels.NetworkChannel;
@@ -76,6 +79,8 @@ final class ArchitectureRules {
                         "org.springframework.context..",
                         "org.springframework.stereotype..",
                         "org.springframework.validation.annotation..",
+                        "org.springframework.scheduling..",
+                        "org.springframework.cache..",
                         // spring-tx
                         "org.springframework.transaction..",
                         // nur die Validierungs-API, nicht Hibernate Validator
@@ -83,7 +88,7 @@ final class ArchitectureRules {
                         // Null-Annotationen (@NullMarked), wie Spring 7 sie selbst verwendet
                         "org.jspecify.annotations..",
                         // Logging-API, die Spring Boot an Logback bindet
-                        "org.slf4j")
+                        "org.slf4j..")
                 .because("§3.1/§11: application nutzt von Spring nur spring-context, spring-tx und die Validierungs-API");
     }
 
@@ -94,12 +99,17 @@ final class ArchitectureRules {
     }
 
     /**
-     * Netzwerk und JDBC aus dem JDK, also alles, was die Allowlist {@code java..} durchlässt. {@link URL} selbst
-     * bleibt erlaubt, nur die Aufrufe, die eine Verbindung öffnen, nicht.
+     * Netzwerk und JDBC aus dem JDK, also alles, was die Allowlist {@code java..} durchlässt: HTTP-Client, RMI, JDBC,
+     * Sockets, Kanäle, Namensauflösung ({@link InetAddress}, {@link SocketAddress}) und Netzwerkschnittstellen.
+     * {@link URL} und {@link java.net.URI} selbst bleiben erlaubt, nur die Aufrufe, die eine Verbindung öffnen, nicht.
      */
     private static ClassesShouldConjunction noNetworkOrJdbc(String layerPackage) {
         return noClasses().that().resideInAPackage(layerPackage)
-                .should().dependOnClassesThat(resideInAnyPackage("java.net.http..", "java.sql..")
+                .should().dependOnClassesThat(
+                        resideInAnyPackage("java.net.http..", "java.net.spi..", "java.rmi..", "java.sql..")
+                        .or(assignableTo(InetAddress.class))
+                        .or(assignableTo(SocketAddress.class))
+                        .or(assignableTo(NetworkInterface.class))
                         .or(assignableTo(URLConnection.class))
                         .or(assignableTo(Socket.class))
                         .or(assignableTo(ServerSocket.class))
