@@ -582,10 +582,10 @@ Pipeline-Commands laufen der Reihe nach, und jeder arbeitet auf dem Zustand, den
 der vorherige in der Datenbank hinterlassen hat, statt Dateien weiterzureichen.
 
 ```
-java -jar foodplanner-ingestion-exec.jar scrape aldi [--fetch] [--full]
-java -jar foodplanner-ingestion-exec.jar search-off
-java -jar foodplanner-ingestion-exec.jar review
-java -jar foodplanner-ingestion-exec.jar seed export
+java -jar foodplanner-ingestion-<version>-exec.jar scrape aldi [--fetch] [--full]
+java -jar foodplanner-ingestion-<version>-exec.jar search-off
+java -jar foodplanner-ingestion-<version>-exec.jar review
+java -jar foodplanner-ingestion-<version>-exec.jar seed export
 ```
 
 Ausführbar ist nur das Jar mit dem Classifier `exec`
