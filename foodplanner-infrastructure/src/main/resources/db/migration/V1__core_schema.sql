@@ -86,6 +86,9 @@ CREATE TABLE off_candidate (
         num_nulls(kcal100, protein100, fat100, carbs100) IN (0, 4))
 );
 
+-- Die Freigabe ist idempotent (§4.4): höchstens ein freigegebener Kandidat je gescrapter Zeile.
+CREATE UNIQUE INDEX off_candidate_one_approved_per_item ON off_candidate (scraped_item_id) WHERE status = 'APPROVED';
+
 CREATE TABLE scraped_page (
     id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     url           text        NOT NULL UNIQUE,

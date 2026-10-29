@@ -9,7 +9,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-foodplanner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foodplanner}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Nur lokal erreichbar: die Standard-Zugangsdaten stehen offen in der Spezifikation.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       # Ab PostgreSQL 18 liegt das Datenverzeichnis versionsbezogen unter /var/lib/postgresql.
       - db-data:/var/lib/postgresql

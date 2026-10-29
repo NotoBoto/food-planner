@@ -60,6 +60,11 @@
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
+                        <configuration>
+                            <includes>
+                                <include>de/foodplanner/infrastructure/PostgresTestConfiguration*</include>
+                            </includes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

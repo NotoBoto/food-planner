@@ -16,7 +16,7 @@ class PostgresImageTest {
 
         assertThat(Files.readAllLines(compose))
                 .map(String::strip)
-                .filteredOn(line -> line.startsWith("image:"))
+                .filteredOn(line -> line.startsWith("image: pgvector/"))
                 .containsExactly("image: " + PostgresTestConfiguration.IMAGE);
     }
 }

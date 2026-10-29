@@ -176,6 +176,31 @@ class FlywayMigrationTest {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    @Test
+    void pendingCandidatesCarryNoDecisionTime() {
+        long itemId = insertScrapedItem("SEARCHED");
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                        INSERT INTO off_candidate (scraped_item_id, off_code, confidence, rank, status, decided_at)
+                        VALUES (:item, '4000000000001', 0.8, 1, 'PENDING', :now)
+                        """).param("item", itemId).param("now", NOW).update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void onlyOneApprovedCandidatePerScrapedItem() {
+        long itemId = insertScrapedItem("SEARCHED");
+        String sql = """
+                INSERT INTO off_candidate (scraped_item_id, off_code, confidence, rank, status, decided_at)
+                VALUES (:item, :offCode, 0.8, 1, 'APPROVED', :now)
+                """;
+        jdbc.sql(sql).param("item", itemId).param("offCode", "4000000000001").param("now", NOW).update();
+
+        assertThatThrownBy(() -> jdbc.sql(sql)
+                        .param("item", itemId).param("offCode", "4000000000002").param("now", NOW).update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     private String columnType(String table, String column) {
         return jdbc.sql("""
                         SELECT data_type FROM information_schema.columns
