@@ -79,7 +79,8 @@ geprüft, weil sich die Aldi-Seite seitdem geändert haben kann.
   und dem Hinweis „seit dem Hinzufügen günstiger / teurer" pro Zeile und für den
   gesamten Warenkorb.
 - Nährwert- und Budgetziele mit Fortschrittsbalken gegenüber den Listensummen.
-- Export und Import der Liste als JSON; PNG-Export einer druckbaren Listenkarte.
+- Export und Import der Liste als JSON; eine Druckansicht der Liste, die sich
+  über den Druckdialog auch als PDF speichern lässt.
 - Preise, inkrementell von Aldi Süd gescrapt, unter Beachtung von `robots.txt`.
 - Nährwerte von der Aldi-Produktseite, wo die Seite sie angibt; sonst aus Open
   Food Facts über bewertete Kandidaten und menschliches Review.
@@ -103,6 +104,7 @@ In der Reihenfolge, in der sie umgesetzt werden (Details in §10):
 5. **Auslistung** von Produkten, deren Seite aus der Sitemap verschwunden ist.
 6. **`eval-confidence`:** Prüfung eines embeddingbasierten Namensscores gegen
    die Review-Historie.
+7. **PNG-Export** der Liste als Bild, ergänzend zur Druckansicht.
 
 ### 2.3 Nicht im Umfang
 
@@ -111,9 +113,9 @@ In der Reihenfolge, in der sie umgesetzt werden (Details in §10):
   Markt.
 - **Preisvergleich zwischen Märkten.** Mit nur einem Markt sinnlos.
 - **Benutzerkonten, Authentifizierung und serverseitige Speicherung der Liste.**
-  Die Liste lebt im Browser; gespeichert und übertragen wird sie per JSON- oder
-  PNG-Export. Die Admin-Endpunkte sind durch einen gemeinsamen Schlüssel
-  geschützt.
+  Die Liste lebt im Browser; gespeichert und übertragen wird sie per JSON-Export
+  oder als Ausdruck bzw. PDF. Die Admin-Endpunkte sind durch einen gemeinsamen
+  Schlüssel geschützt.
 - **Mehrere benannte Listen.** Export und Import erfüllen diesen Zweck.
 - **Rezepte, Speisepläne und mehrtägige Planung.**
 - **Barcodes für Produkte aus Aldi-Quelle.** Aldi veröffentlicht keine. Eine EAN
@@ -779,8 +781,7 @@ eine byte-identische Datei und damit keinen Diff. Der Seed-Loader prüft
 
 React 19, Vite, TypeScript, TanStack Query für den API-Zustand, Tailwind 4 für
 das Styling, React Router für die Navigation, zod zum Parsen von allem, was aus
-`localStorage` oder einer Datei kommt, `html-to-image` für den PNG-Export. Die
-Oberfläche ist auf Deutsch.
+`localStorage` oder einer Datei kommt. Die Oberfläche ist auf Deutsch.
 
 Die TypeScript-Typen der API werden mit `openapi-typescript` aus der
 springdoc-Spezifikation generiert. Ändert sich ein DTO in Java, baut das
@@ -805,8 +806,9 @@ Typen aus dieser Datei und baut damit ohne laufende API.
    bzw. 100 ml pro Zeile, der Hinweis „seit dem Hinzufügen günstiger / teurer",
    Gesamtpreis mit der Preisdifferenz des Warenkorbs, Summe der
    Makronährstoffe, Fortschrittsbalken für die Ziele, Bedienelemente für
-   Export/Import und Zeilen für Produkte, die den Katalog verlassen haben
-   (angezeigt mit ihrem gespeicherten Namen, mit eigener Entfernen-Schaltfläche).
+   Export/Import und Drucken sowie Zeilen für Produkte, die den Katalog
+   verlassen haben (angezeigt mit ihrem gespeicherten Namen, mit eigener
+   Entfernen-Schaltfläche).
 4. `/admin` — Review in zwei Tabs. **„Zu prüfen"** zeigt jede gescrapte Zeile
    mit ihrem Rohnamen (verlinkt auf die Aldi-Seite), ihrem Bild und bis zu fünf
    Kandidaten aus Open Food Facts mit eigenen Bildern, Konfidenzen und Links;
@@ -845,7 +847,7 @@ höchstens eine Zeile: Ein Produkt erneut hinzuzufügen erhöht seine Menge um 1
 ein Wert, den das Schema beim nächsten Laden ablehnen würde, gar nicht erst
 gespeichert wird.
 
-### 7.3 Export und Import
+### 7.3 Export, Import und Drucken
 
 Export und Import sind auch der Weg, mehrere Listen zu führen.
 
@@ -861,9 +863,12 @@ Export und Import sind auch der Weg, mehrere Listen zu führen.
   Katalog" aufgeführt; der Rest wird geladen. Nichts wird unbemerkt verworfen.
   Der Import ersetzt Liste und Ziele; ist die aktuelle Liste nicht leer, fragt
   die Oberfläche vorher nach.
-- **PNG-Export** — `html-to-image` erfasst einen eigens dafür gebauten,
-  druckbaren Kartenknoten statt der Live-Oberfläche, sodass keine Bedienelemente
-  oder Scrollleisten im Bild landen.
+- **Drucken** — `window.print()` mit einem Stylesheet für `@media print`, das
+  nur die Liste mit ihren Summen zeigt: Kopfzeile, Bedienelemente,
+  Mengenschalter und Ziele fallen weg, lange Listen brechen zwischen Zeilen um.
+  Über den Druckdialog lässt sich die Liste auch als PDF speichern; anders als
+  ein Bild enthält das PDF durchsuchbaren Text. Es gibt keine eigene
+  Druckvorlage, gedruckt wird dieselbe Ansicht.
 
 ### 7.4 Neuberechnung
 
@@ -1203,6 +1208,23 @@ Jaro-Winkler). Setzt §10.3 voraus.
 - Die Formel aus §6.2 bleibt, sofern die Evaluierung nicht zeigt, dass die
   Alternative mindestens gleich gut ist.
 
+### 10.7 PNG-Export
+
+Ergänzt die Druckansicht (§7.3) um ein Bild, das sich leichter in einen
+Messenger schicken oder auf dem Handy öffnen lässt als ein PDF.
+
+**Verhalten.** `html-to-image` erfasst einen eigens dafür gebauten Kartenknoten
+statt der Live-Oberfläche, sodass keine Bedienelemente oder Scrollleisten im
+Bild landen. Die Karte zeigt dieselben Zeilen und Summen wie die Druckansicht;
+die Datei heißt `foodplanner-list-YYYY-MM-DD.png`.
+
+**Kein Backend.** Die Erweiterung betrifft nur `web/` und braucht weder
+Migration noch Endpunkt.
+
+**Tests.** Vitest prüft, dass die Karte aus denselben Daten wie die Liste
+entsteht und keine Bedienelemente enthält; das Bild selbst wird nicht
+verglichen.
+
 ## 11. Bekannte Kompromisse
 
 - **Clean Architecture** bedeutet mehrere Dateien pro Use Case statt einer
@@ -1271,7 +1293,7 @@ alles Weitere wird auf echten Daten gebaut. Abgabe ist um den 15.12.2026
 | 1. Aldi-Daten | 42–44 | `robots.txt` und Sitemap, Seitenparser, Nuxt-Resolver, Einheit und Packungsgröße, Snapshots; erster Live-Lauf mit 300 Produkten (§9.3) | Snapshot und Fixtures committet, §1.1 geprüft |
 | 2. Katalog und Review | 44–45 | Verzweigung beim Schreiben, `search-off` mit Konfidenzformel und Zeitbudget, Konsolen-`review`, `seed export` | Befüllte Datenbank, `products.json` committet |
 | 3. API | 46 | Lexikalische und EAN-Suche, Detail, Batch, Listenzusammenfassung, `catalog/info`, Admin-Endpunkte, `ProblemDetail`, Admin-Filter, Abfragesatz | Vertrag aus §5 vollständig getestet |
-| 4. Frontend | 47–48 | Suche, Detail, Liste, Export/Import, PNG, Admin-Tabs, generierte API-Typen | Durchgehende Demo im Browser |
+| 4. Frontend | 47–48 | Suche, Detail, Liste, Export/Import, Druckansicht, Admin-Tabs, generierte API-Typen | Durchgehende Demo im Browser |
 | 5. Abschluss Kern | 49 | Alles in `docker compose`, README, Offline-Demo aus einem frischen Klon geprüft | **Kern fertig** |
 | 6. Erweiterungen | 50 | Rückgängig, dann Ausblenden; weitere nur, wenn Zeit bleibt | Je nach verfügbarer Zeit |
 | Abgabe | 51 | Abgabe um den 15.12. | |
