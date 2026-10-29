@@ -11,10 +11,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Import;
 
+import de.foodplanner.infrastructure.PostgresTestConfiguration;
 import picocli.CommandLine;
 
 @SpringBootTest
+@Import(PostgresTestConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class IngestionApplicationTests {
 
