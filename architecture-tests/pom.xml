@@ -9,4 +9,95 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>architecture-tests</artifactId>
+
+    <dependencies>
+        <!-- Die Regeln lesen die kompilierten Klassen aller Java-Module. -->
+        <dependency>
+            <groupId>de.foodplanner</groupId>
+            <artifactId>foodplanner-domain</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.foodplanner</groupId>
+            <artifactId>foodplanner-application</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.foodplanner</groupId>
+            <artifactId>foodplanner-infrastructure</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.foodplanner</groupId>
+            <artifactId>foodplanner-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>de.foodplanner</groupId>
+            <artifactId>foodplanner-ingestion</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Für die Fixtures: was application darf (allowed), und was es nicht darf (Negativtests). -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>
