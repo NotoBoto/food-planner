@@ -8,29 +8,26 @@ importierten Datei kommt.
 
 Kein Next.js: Das Backend ist Spring Boot, ein zweiter Server würde nur Anfragen durchreichen.
 Die Einkaufsliste liegt ohnehin im Browser, und Suchmaschinen spielen keine Rolle. Vite baut
-statische Dateien, die im Docker-Setup ein einfacher Webserver ausliefert.
+statische Dateien, die im Docker-Setup ein einfacher Webserver ausliefert. Dieser reicht `/api` an
+die API durch, genau wie Vite beim Entwickeln. Das Frontend ruft die API also immer über dieselbe
+Adresse auf und braucht weder eine API-URL zur Bauzeit noch CORS.
 
 ## Abweichungen von der Spezifikation
 
 Vorschläge, die das Team noch abnicken muss. Bis dahin gilt die Spezifikation
 (`docs/2026-10-12-foodplanner-design.md`).
 
-- API-Typen von Hand statt Generierung mit `openapi-typescript`, Export aus Maven und Test auf
-  eine veraltete `openapi.json`. Die Endpunkte gibt es noch nicht, die DTOs der API sind
-  überschaubar, und Frontend- und Maven-Build bleiben unabhängig voneinander. Die Generierung
-  lässt sich nachrüsten, wenn die API steht.
-- Drucken statt PNG-Export. Eine Druckansicht zeigt nur den Kassenbon, über den Druckdialog lässt
-  er sich auch als PDF speichern. Das spart `html-to-image`, und im PDF steht echter Text statt
-  eines Bildes.
+- API-Typen zunächst von Hand. Solange es die Endpunkte nicht gibt, lässt sich nichts generieren.
+  Sobald die API ihre `openapi.json` exportiert, werden die Typen wie vorgesehen mit
+  `openapi-typescript` erzeugt.
 - Weniger Frontend-Tests als in der Spezifikation: Vitest für Listenlogik, Formatierung und
   Export/Import, dazu ein paar Komponententests. MSW nur dort, wo es ohne nicht geht.
-- Reihenfolge Suche, Detail, Liste, Admin. Wird die Zeit knapp, reicht fürs Review die Konsole.
 
 ## Gestaltung
 
 Schlicht und hell, eine Akzentfarbe, Rahmen statt Schatten. Keine Farbverläufe, keine Emojis,
 keine Werbetexte. Wer die App öffnet, landet direkt in der Suche. Systemschrift statt Webfont,
-damit die Demo offline läuft.
+das spart einen zusätzlichen Download.
 
 Die Farben stehen als Tailwind-Theme in `web/src/index.css`. Die Standardpalette ist abgeschaltet,
 andere Farben gibt es nicht.
@@ -82,7 +79,7 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
   Treffern.
 - Die Treffer stehen als Karten im Raster, vier Spalten auf dem Desktop, eine auf dem Handy, 20 pro
   Seite. Eine Karte zeigt Name, Marke, Packungsgröße, Preis, Kilo- bzw. Literpreis und Eiweiß pro
-  100 g. Ein Bild gibt es nicht, weil die API für Produkte keins liefert.
+  100 g bzw. 100 ml. Ein Bild gibt es nicht, weil die API für Produkte keins liefert.
 - Der Name führt zur Detailseite, „+“ legt das Produkt auf die Liste oder erhöht die Menge um 1.
 
 ### Produktdetail `/product/:id`
@@ -90,8 +87,8 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
 - Oben Name, Marke und Kategorie, darunter Preis, Packungsgröße und Kilo- bzw. Literpreis, daneben
   Menge und „Zur Liste hinzufügen“. Abweichend von der Skizze steht das oben, damit man dafür nicht
   scrollen muss.
-- Darunter Nährwerte pro 100 g und Preisverlauf als Tabellen, auf dem Desktop nebeneinander. Ohne
-  abgelösten Preis steht dort „Bisher keine Preisänderung“.
+- Darunter Nährwerte pro 100 g bzw. 100 ml und Preisverlauf als Tabellen, auf dem Desktop
+  nebeneinander. Ohne abgelösten Preis steht dort „Bisher keine Preisänderung“.
 - Am Ende EAN, Abteilung und die Links zu Aldi und Open Food Facts, jeweils nur, wenn es sie gibt.
 
 ### Einkaufsliste `/list`
@@ -99,11 +96,12 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
 - Die Liste sieht aus wie ein Kassenbon: Monospace-Schrift, gestrichelte Trennlinien, Summe
   unten. Das passt zu Yaroslavs Skizze und zum Drucken.
 - Jede Zeile hat Name, Mengenschalter, Stückpreis und Zeilensumme, dazu Eiweiß und kcal pro 100 g
-  und die Differenz, falls sich der Preis seit dem Hinzufügen geändert hat. Unter den Zeilen
-  stehen Summe, Preisänderung insgesamt und die Summen der Nährwerte.
-- Neben dem Bon die Ziele als Zahlenfelder mit Fortschrittsbalken, auf dem Handy darunter. Ein
-  leeres Feld heißt kein Ziel. Über 100 % wird nur das Budget rot, weil bei Nährwerten offen ist,
-  ob ein Ziel Minimum oder Maximum ist.
+  bzw. 100 ml und die Differenz, falls sich der Preis seit dem Hinzufügen geändert hat. Unter den
+  Zeilen stehen Summe, Preisänderung insgesamt und die Summen der Nährwerte.
+- Neben dem Bon die Ziele mit Fortschrittsbalken, auf dem Handy darunter. Ziele gibt es nur
+  komplett: Ein Schalter „Ziele verwenden“ blendet die fünf Felder ein, alle mit Vorschlagswerten.
+  Das Budget wird in Euro mit Komma eingegeben und in Cent gespeichert. Über 100 % wird nur das
+  Budget rot, weil bei Nährwerten offen ist, ob ein Ziel Minimum oder Maximum ist.
 - Oben Exportieren, Importieren und Drucken. Importieren ersetzt Liste und Ziele und fragt vorher
   nach, wenn die Liste nicht leer ist. „Liste leeren“ fragt immer nach. Beim Drucken fallen
   Buttons, Mengenschalter und Ziele weg.

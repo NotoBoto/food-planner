@@ -501,10 +501,10 @@ Alle DTOs sind Java-Records.
 
 ```
 ProductSummary   id, productKey, name, brand, category, packageGrams, unit,
-                 priceCents, protein100g, fat100g, carbs100g, kcal100g
+                 priceCents, pricePerKgCents, protein100g, fat100g, carbs100g,
+                 kcal100g
 
-ProductDetail    ProductSummary + offCode, pricePerKgCents,
-                 aldiDepartment, aldiUrl, offUrl,
+ProductDetail    ProductSummary + offCode, aldiDepartment, aldiUrl, offUrl,
                  priceHistory[] { priceCents, scrapedAt, isCurrent }
 
 PagedResult<T>   items[], page, pageSize, totalCount, totalPages
