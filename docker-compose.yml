@@ -1,0 +1,23 @@
+name: foodplanner
+
+services:
+  db:
+    # Derselbe Tag steht in PostgresTestConfiguration (Testcontainers); ein Test prüft die Übereinstimmung.
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-foodplanner}
+      POSTGRES_USER: ${POSTGRES_USER:-foodplanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-foodplanner}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Ab PostgreSQL 18 liegt das Datenverzeichnis versionsbezogen unter /var/lib/postgresql.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
