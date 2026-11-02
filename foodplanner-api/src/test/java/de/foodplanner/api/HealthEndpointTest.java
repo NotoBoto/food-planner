@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthContributor;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.health.registry.HealthContributorRegistry;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -37,10 +40,25 @@ class HealthEndpointTest {
                 .andExpect(content().json("{\"status\":\"UP\"}", JsonCompareMode.STRICT));
     }
 
+    /**
+     * AC: Datenbank nicht erreichbar → 503 {@code DOWN}. Statt die geteilte Datenbank abzuschalten, wird der echte
+     * Datenbank-Indikator {@code db} durch einen ersetzt, der {@code DOWN} meldet. Fiele {@code db} aus der
+     * Health-Gruppe oder würde {@code DOWN} auf 200 abgebildet, schlüge der Test fehl.
+     */
     @Test
-    void healthIncludesDatabaseIndicator() {
-        // AC: Datenbank nicht erreichbar → 503 DOWN. Abgesichert über den Indikator, ohne die DB abzuschalten.
-        assertThat(healthContributorRegistry.getContributor("db")).isNotNull();
+    void healthIsDownWith503WhenDatabaseIsDown() throws Exception {
+        HealthContributor db = healthContributorRegistry.unregisterContributor("db");
+        assertThat(db).as("Datenbank-Indikator db ist registriert").isNotNull();
+        try {
+            healthContributorRegistry.registerContributor("db", (HealthIndicator) () -> Health.down().build());
+
+            mockMvc.perform(get("/health"))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(content().json("{\"status\":\"DOWN\"}", JsonCompareMode.STRICT));
+        } finally {
+            healthContributorRegistry.unregisterContributor("db");
+            healthContributorRegistry.registerContributor("db", db);
+        }
     }
 
     @ParameterizedTest

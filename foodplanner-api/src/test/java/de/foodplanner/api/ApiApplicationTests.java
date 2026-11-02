@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
 
 @SpringBootTest
+// Dieselben Annotationen wie die MockMvc-Endpunkttests: Spring verwendet den Kontext und den Container wieder.
 @AutoConfigureMockMvc
 @Import(PostgresTestConfiguration.class)
 class ApiApplicationTests {
