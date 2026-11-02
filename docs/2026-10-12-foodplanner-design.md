@@ -894,7 +894,7 @@ handgeschriebene Fakes ersetzt; Mockito nur, wo ein Fake unverhältnismäßig w�
 | `domain` | JUnit, keine Mocks | Summenarithmetik, Zielfortschritt, `priceChangeCents` und Preisdifferenz, Namensnormalisierer und Markenextraktion, die Konfidenzformel mit beiden Korrekturen und beiden Schwellen, der strikte deutsche Zahlenparser, die Plausibilitätsprüfung, `productKey` |
 | `application` | JUnit mit Fake-Ports | Routing der Suche (EAN, leer, lexikalisch); die Handler für auswählen / ablehnen / Sammelfreigabe / verknüpfen; „none" setzt alle Kandidaten auf `REJECTED`; Idempotenz; Batch mit unbekanntem Schlüssel; Validierungsregeln direkt über `Validator`, plus ein Test, dass `@Validated` am Handler tatsächlich greift |
 | `infrastructure` | Testcontainers (`pgvector/pgvector`), WireMock, aufgezeichnete Fixtures | Flyway-Migrationen laufen durch; tokenweiser lexikalischer Abgleich (Reihenfolgeunabhängigkeit, Marken- und Kategoriefelder, Komposita); EAN-Suche; Filter; Seitennavigation; die Schwelle über `connectionInitSql`; der Abfragesatz `queries.json`; Java-Faltung gegen `unaccent`; die Verzweigung beim Schreiben eines Scrapes; „null löscht nichts"; der Aldi-Parser auf gespeicherten Seiten; der Nuxt-Resolver (numerische Literale, Wrapper, Zyklen); Auslesen der Einheit; der Open-Food-Facts-Client; `robots.txt`; Retry und Backoff; der Seed-Loader |
-| `api` | `@SpringBootTest` + MockMvc gegen eine echte Datenbank | Endpunktverträge, Durchsetzung des Admin-Schlüssels (401 / 503), Form von `ProblemDetail`, CORS aus der Konfiguration |
+| `api` | `@SpringBootTest` + MockMvc gegen eine echte Datenbank | Endpunktverträge, Durchsetzung des Admin-Schlüssels (401 / 503), Form von `ProblemDetail` |
 | `ingestion` | JUnit mit Fakes, injizierte `Clock` | Snapshot- und Abrufpfad von `scrape`; Validierung der Einstellungen; Nebenläufigkeit und Taktung; das Zeitbudget lässt Zeilen `NOT_SEARCHED`; Retry-Rettung und Snapshot-Zusammenführung in `search-off`; Sitemap-Liste und Abdeckung im Snapshot; `seed export` |
 | `architecture-tests` | ArchUnit | Abhängigkeitsrichtung der Module; kein Spring Web, JDBC, JPA oder HTTP-Client in `application`; keine Abhängigkeiten in `domain` |
 | `web/` | Vitest, Testing Library, MSW | Komponenten, Seiten, der Listen-Reducer und die Speicherung, Round-Trips von Export/Import, die Admin-Ansichten |
@@ -920,9 +920,11 @@ Das Dockerfile der API baut mehrstufig: Maven im Build-Stage, Ausführung auf
 `eclipse-temurin:25-jre`. Die API ist direkt unter <http://localhost:5199>
 erreichbar, mit Swagger UI (springdoc) unter `/swagger-ui.html`. Flyway migriert
 das Schema beim Start, und der Katalog befüllt sich aus `data/seed/products.json`,
-wenn er leer ist (`seed.path` zeigt auf die im Image eingebaute Kopie). Die
-CORS-Origins kommen aus `cors.allowed-origins` — Standard ist der Vite-Dev-Server,
-in `docker compose` der Origin des Web-Containers.
+wenn er leer ist (`seed.path` zeigt auf die im Image eingebaute Kopie). Der
+Web-Container liefert die gebauten Dateien aus und reicht `/api` an die API
+durch, wie Vite beim Entwickeln (§9.2). Der Browser ruft die API also immer über
+denselben Origin auf; CORS wird nicht konfiguriert, und das Frontend braucht
+keine API-URL zur Bauzeit.
 
 Die Datenbank läuft auf Port 5432 mit Datenbank, Benutzer und Passwort
 `foodplanner`. Die Werte lassen sich über `POSTGRES_*` überschreiben; die

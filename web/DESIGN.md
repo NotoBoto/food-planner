@@ -81,6 +81,14 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
   Seite. Eine Karte zeigt Name, Marke, Packungsgröße, Preis, Kilo- bzw. Literpreis und Eiweiß pro
   100 g bzw. 100 ml. Ein Bild gibt es nicht, weil die API für Produkte keins liefert.
 - Der Name führt zur Detailseite, „+“ legt das Produkt auf die Liste oder erhöht die Menge um 1.
+- Unter dem Raster „Zurück“, „Seite 3 von 10“ und „Weiter“, am Anfang bzw. Ende ausgegraut. Ein
+  neuer Suchbegriff, ein Filter oder eine andere Sortierung setzt auf Seite 1 zurück, ein
+  Seitenwechsel scrollt nach oben. Eine Seite hinter der letzten (etwa aus einer alten URL) zeigt
+  „Diese Seite gibt es nicht“ und einen Link zu Seite 1.
+- Bei „Relevanz“ liefert die API höchstens 200 Treffer, also 10 Seiten. Sind es genau 200, steht
+  über dem Raster „Mindestens 200 Treffer, grenze die Suche ein“.
+- Ist der Katalog leer (`lastScrapedAt` ist `null`), steht statt Anzahl und Datum „Der Katalog ist
+  noch leer“, und Suchfeld und Filter sind ausgegraut.
 
 ### Produktdetail `/product/:id`
 
@@ -95,9 +103,9 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
 
 - Die Liste sieht aus wie ein Kassenbon: Monospace-Schrift, gestrichelte Trennlinien, Summe
   unten. Das passt zu Yaroslavs Skizze und zum Drucken.
-- Jede Zeile hat Name, Mengenschalter, Stückpreis und Zeilensumme, dazu Eiweiß und kcal pro 100 g
-  bzw. 100 ml und die Differenz, falls sich der Preis seit dem Hinzufügen geändert hat. Unter den
-  Zeilen stehen Summe, Preisänderung insgesamt und die Summen der Nährwerte.
+- Jede Zeile hat Name, Mengenschalter, Stückpreis, Zeilensumme und „Entfernen“, dazu Eiweiß und
+  kcal pro 100 g bzw. 100 ml und die Differenz, falls sich der Preis seit dem Hinzufügen geändert
+  hat. Unter den Zeilen stehen Summe, Preisänderung insgesamt und die Summen der Nährwerte.
 - Neben dem Bon die Ziele mit Fortschrittsbalken, auf dem Handy darunter. Ziele gibt es nur
   komplett: Ein Schalter „Ziele verwenden“ blendet die fünf Felder ein, alle mit Vorschlagswerten.
   Das Budget wird in Euro mit Komma eingegeben und in Cent gespeichert. Über 100 % wird nur das
@@ -105,6 +113,13 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
 - Oben Exportieren, Importieren und Drucken. Importieren ersetzt Liste und Ziele und fragt vorher
   nach, wenn die Liste nicht leer ist. „Liste leeren“ fragt immer nach. Beim Drucken fallen
   Buttons, Mengenschalter und Ziele weg.
+- Die Grenzen aus `web/src/limits.ts` greifen schon in der Oberfläche, damit nichts gespeichert
+  wird, was beim nächsten Laden abgelehnt würde. Der Mengenschalter geht von 1 bis 1000: Bei 1 ist
+  „−“ ausgegraut, weg kommt eine Zeile über „Entfernen“; bei 1000 sind „+“ am Schalter, auf der
+  Karte und auf der Detailseite ausgegraut. Bei 200 Produkten ist die Liste voll: „+“ und „Zur Liste
+  hinzufügen“ sind für Produkte, die noch nicht draufstehen, ausgegraut, mit dem Hinweis „Die Liste
+  ist voll (200 Produkte)“. Ein Budget über 21.474.836,47 € wird nicht übernommen, das Feld zeigt
+  den erlaubten Bereich darunter.
 - Alle Summen rechnet der Server. Während neu gerechnet wird, bleiben die alten Zahlen stehen.
 - Produkte, die nicht mehr im Katalog sind, stehen unter dem Bon mit ihrem gespeicherten Namen und
   einem eigenen „Entfernen“.
@@ -113,15 +128,30 @@ mit der Anzahl der Produkte, rechts abgesetzt Admin.
 
 - Oben das Feld für den Admin-Schlüssel, er gilt nur für die aktuelle Browsersitzung. Darunter die
   Tabs „Zu prüfen“ und „Ohne Treffer“.
+- Bei 401 steht unter dem Feld „Der Schlüssel stimmt nicht“, der gespeicherte Schlüssel wird
+  gelöscht und die Tabs bleiben leer. Bei 503 steht dort „Der Admin-Zugang ist auf dem Server nicht
+  eingerichtet (`ADMIN_KEY` fehlt)“, und das Feld ist ausgegraut, weil kein Schlüssel hilft.
 - „Zu prüfen“ hat Filter für Kategorie und Konfidenz. Jeder Block zeigt oben die gescrapte Zeile
   mit Name, Preis und Link zur Aldi-Seite, darunter bis zu fünf Kandidaten mit Konfidenz und
   „Übernehmen“, am Ende „Keiner passt“.
 - Nur der beste Kandidat eines Blocks hat eine Checkbox. „Alle ab 90 % auswählen“ hakt die
   passenden an, „Auswahl bestätigen“ schickt sie ab. Danach steht da, was übernommen wurde und was
-  nicht, mit Grund.
+  nicht, mit Grund:
+
+  | Ergebnis | Text |
+  |---|---|
+  | `REFUSED_NO_PACKAGE_SIZE` | Keine Packungsgröße, daraus lässt sich kein Preis machen |
+  | `REFUSED_OFF_CODE_TAKEN` | Dieses Open-Food-Facts-Produkt gehört schon zu einem anderen Produkt |
+  | `ALREADY_DECIDED` | Wurde schon entschieden |
+
+- Eine 409 bei „Übernehmen“ hat dieselben zwei Gründe wie die ersten beiden Zeilen. Der Block zeigt
+  den Text an und bleibt stehen, damit man einen anderen Kandidaten oder „Keiner passt“ wählen
+  kann.
 - Bilder erscheinen als Vorschau, wenn man mit der Maus über einen Namen fährt oder ihn mit der
   Tastatur auswählt.
-- In „Ohne Treffer“ hat jede Zeile ein Feld für die Open-Food-Facts-URL und „Verknüpfen“.
+- In „Ohne Treffer“ hat jede Zeile ein Feld für die Open-Food-Facts-URL und „Verknüpfen“. Fehler
+  stehen unter dem Feld: 400 „Das ist keine Produkt-URL von openfoodfacts.org“, 404 „Zu diesem
+  Barcode gibt es kein Produkt bei Open Food Facts“, 409 „Das Produkt hat keine Nährwerte“.
 
 ## Laden, leer, Fehler
 
