@@ -3,6 +3,7 @@ package de.foodplanner.infrastructure.product;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +83,34 @@ class JdbcProductRepositoryTest {
 
         assertThat(repository.catalogInfo())
                 .isEqualTo(new CatalogInfo(3, Instant.parse("2026-11-02T11:00:00Z")));
+    }
+
+    @Test
+    void categoriesAreDistinctSortedAndVisibleOnly() {
+        price(product("1001", "Obst"), "2026-11-02T10:00:00Z", true);
+        price(product("1002", "Obst"), "2026-11-02T10:00:00Z", true);
+        price(product("1003", "Brot"), "2026-11-02T10:00:00Z", true);
+        price(product("1004", null), "2026-11-02T10:00:00Z", true);
+        price(product("1005", "Käse"), "2026-11-02T10:00:00Z", false); // nur abgelöster Preis
+        product("1006", "Fleisch"); // ohne Preis
+
+        assertThat(repository.categories()).containsExactly("Brot", "Obst");
+    }
+
+    @Test
+    void noCategoriesInEmptyCatalog() {
+        assertThat(repository.categories()).isEqualTo(List.of());
+    }
+
+    private long product(String aldiSku, String category) {
+        return jdbc.sql("""
+                        INSERT INTO product (aldi_sku, name, category, package_grams, unit, source)
+                        VALUES (:sku, 'Test ' || :sku, :category, 500, 'G', 'ALDI')
+                        RETURNING id""")
+                .param("sku", aldiSku)
+                .param("category", category)
+                .query(Long.class)
+                .single();
     }
 
     private long product(String aldiSku) {

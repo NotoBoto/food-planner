@@ -1,6 +1,7 @@
 package de.foodplanner.infrastructure.product;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -30,5 +31,13 @@ class JdbcProductRepository implements ProductRepository {
                             lastScrapedAt == null ? null : lastScrapedAt.toInstant());
                 })
                 .single();
+    }
+
+    @Override
+    public List<String> categories() {
+        return jdbc.sql("SELECT DISTINCT p.category FROM " + VisibleProducts.FROM
+                        + " WHERE p.category IS NOT NULL ORDER BY p.category")
+                .query(String.class)
+                .list();
     }
 }
