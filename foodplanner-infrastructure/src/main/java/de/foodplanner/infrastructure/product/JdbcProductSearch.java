@@ -94,12 +94,14 @@ class JdbcProductSearch implements ProductSearch {
 
     /**
      * {@code w × (word_similarity + Bonus)}. Die Tokens bestehen nur aus Buchstaben und Ziffern
-     * ({@link SearchText}), deshalb ist {@code '\m' || :t || '\M'} ein gültiges Wortmuster ohne Sonderzeichen.
+     * ({@link SearchText}), deshalb ist {@code '\m' || :t || '\M'} ein gültiges Wortmuster ohne Sonderzeichen. Die
+     * Wortgrenzen der Regex-Treffer folgen {@code COLLATE pg_c_utf8}, wie die erzeugten Spalten
+     * ({@code lower(<col> COLLATE pg_c_utf8)}), nicht der Datenbank-Collation.
      */
     private static String fieldScore(String column, String weight, String token) {
         return weight + " * (word_similarity(" + token + ", " + column + ") + CASE"
-                + " WHEN " + column + " ~ ('\\m' || " + token + " || '\\M') THEN 0.5"
-                + " WHEN " + column + " ~ ('\\m' || " + token + ") THEN 0.25"
+                + " WHEN " + column + " COLLATE pg_c_utf8 ~ ('\\m' || " + token + " || '\\M') THEN 0.5"
+                + " WHEN " + column + " COLLATE pg_c_utf8 ~ ('\\m' || " + token + ") THEN 0.25"
                 + " ELSE 0 END)";
     }
 

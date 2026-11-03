@@ -4,7 +4,9 @@ import java.util.Map;
 
 /**
  * Einträge aus der {@code unaccent.rules} von PostgreSQL, die NFD nicht abdeckt (§5.5): Buchstaben ohne Zerlegung in
- * Grundbuchstabe und Akzent. Schlüssel und Werte sind kleingeschrieben, weil die Faltung zuerst kleinschreibt. Ob die
+ * Grundbuchstabe und Akzent. Schlüssel und Werte sind kleingeschrieben, weil die Faltung zuerst kleinschreibt. Die Einträge,
+ * deren Wert dem Schlüssel gleicht (ǣ, ǯ, ǽ, ǿ), sind der umgekehrte Fall: NFD würde sie zerlegen, {@code unaccent}
+ * lässt sie unverändert. Ob die
  * Tabelle vollständig ist, prüft {@code SearchFoldingTest} in {@code infrastructure} gegen die Datenbank (§12).
  */
 final class UnaccentExceptions {

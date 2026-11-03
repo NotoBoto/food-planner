@@ -80,4 +80,15 @@ class SearchProductsHandlerTest {
         assertThat(search.filter).isEqualTo(new SearchFilter("Milch", null, 300L, null));
         assertThat(search.sort).isEqualTo(SearchSort.KCAL_ASC);
     }
+
+    @Test
+    void blankCategoryMeansNoFilter() {
+        for (String category : new String[] {"", "  "}) {
+            handler.handle(new SearchProductsQuery("Milch", category, null, null, null, SearchSort.RELEVANCE, 1, 20));
+            assertThat(search.filter.category()).isNull();
+
+            handler.handle(new SearchProductsQuery(null, category, null, null, null, SearchSort.RELEVANCE, 1, 20));
+            assertThat(search.filter.category()).isNull();
+        }
+    }
 }

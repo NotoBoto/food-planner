@@ -1,6 +1,9 @@
 package de.foodplanner.domain.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,5 +39,13 @@ class SearchTextTest {
     @Test
     void specialCharactersNeverReachTokens() {
         assertThat(SearchText.parse("o'neil c++ 50% (x) \\").tokens()).containsExactly("o", "neil", "c", "50", "x");
+    }
+
+    @Test
+    void constructorRejectsTokensWithSpecialCharacters() {
+        for (String bad : new String[] {"", "a b", "c++", "o'neil", "50%", "a\\b"}) {
+            assertThatThrownBy(() -> new SearchText("x", List.of(bad))).isInstanceOf(IllegalArgumentException.class);
+        }
+        assertThat(new SearchText("x", List.of("milch", "50", "ä")).tokens()).containsExactly("milch", "50", "ä");
     }
 }

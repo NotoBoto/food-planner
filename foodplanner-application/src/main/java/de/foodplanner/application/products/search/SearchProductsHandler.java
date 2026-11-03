@@ -36,8 +36,10 @@ public class SearchProductsHandler {
         if (EAN.matcher(trimmed).matches()) {
             return productSearch.byOffCode(trimmed, page);
         }
+        // Normalisierung, keine Validierung: ein leerer Kategorie-Parameter (?category=) heißt "kein Filter".
+        String category = query.category() == null || query.category().isBlank() ? null : query.category();
         SearchFilter filter = new SearchFilter(
-                query.category(), query.minPriceCents(), query.maxPriceCents(), query.minProtein100g());
+                category, query.minPriceCents(), query.maxPriceCents(), query.minProtein100g());
         SearchText text = SearchText.parse(raw);
         if (text.isEmpty()) {
             return productSearch.browse(filter, query.sort(), page);

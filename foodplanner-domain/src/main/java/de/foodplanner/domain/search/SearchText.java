@@ -22,8 +22,19 @@ public record SearchText(String raw, List<String> tokens) {
     private static final Pattern SEPARATORS = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
 
+    private static final Pattern TOKEN = Pattern.compile("[\\p{L}\\p{N}]+");
+
+    /**
+     * @throws IllegalArgumentException wenn ein Token nicht nur aus Buchstaben und Ziffern besteht; die Regex-Muster
+     *                                  der Suche verlassen sich darauf
+     */
     public SearchText {
         tokens = List.copyOf(tokens);
+        for (String token : tokens) {
+            if (!TOKEN.matcher(token).matches()) {
+                throw new IllegalArgumentException("Token darf nur Buchstaben und Ziffern enthalten: " + token);
+            }
+        }
     }
 
     /**

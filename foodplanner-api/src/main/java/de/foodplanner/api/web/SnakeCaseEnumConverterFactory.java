@@ -8,7 +8,9 @@ import org.springframework.core.convert.converter.ConverterFactory;
 /**
  * Wandelt Request-Parameter in Enums um, akzeptiert aber nur die kleingeschriebene snake_case-Form
  * ({@code price_asc}, nicht {@code PRICE_ASC}); alles andere ergibt {@link IllegalArgumentException}
- * und damit 400 (§5.1). Ein leerer String ergibt {@code null}, sodass der Default des Parameters greift.
+ * und damit 400 (§5.1). Für einen leeren String setzt Spring bei Parametern mit Default den Default
+ * ein, noch bevor der Konverter läuft. Der Konverter selbst gibt dafür {@code null} zurück; das wirkt nur bei
+ * Parametern ohne Default und endet dort als fehlender Parameter in 400.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 final class SnakeCaseEnumConverterFactory implements ConverterFactory<String, Enum> {

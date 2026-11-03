@@ -86,6 +86,19 @@ class ProductSearchEndpointTest {
     }
 
     @Test
+    void emptyCategoryIsNoFilter() throws Exception {
+        product("1001", null, "Fettarme Milch", "ML", 1000, 109);
+        product("1002", null, "Roggenbrot", "G", 500, 189);
+
+        mockMvc.perform(get("/api/v1/products/search").param("category", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2));
+        mockMvc.perform(get("/api/v1/products/search").param("q", "milch").param("category", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(1));
+    }
+
+    @Test
     void unknownSortIs400() throws Exception {
         // errors.sort kommt mit #25 (Bindungsfehler)
         mockMvc.perform(get("/api/v1/products/search").param("sort", "foo"))
