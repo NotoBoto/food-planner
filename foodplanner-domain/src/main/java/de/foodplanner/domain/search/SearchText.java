@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -22,13 +21,6 @@ public record SearchText(String raw, List<String> tokens) {
 
     private static final Pattern SEPARATORS = Pattern.compile("[^\\p{L}\\p{N}]+");
     private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
-
-    /**
-     * Zeichen, die sich nicht per NFD in Grundbuchstabe und Akzent zerlegen lassen. Sie müssen genauso falten wie
-     * PostgreSQL {@code unaccent}, damit Java und SQL dieselben Tokens sehen. Die Tabelle wächst, bis der Abgleich
-     * gegen {@code unaccent} stimmt.
-     */
-    private static final Map<Character, String> EXCEPTIONS = Map.of('ß', "ss");
 
     public SearchText {
         tokens = List.copyOf(tokens);
@@ -55,21 +47,23 @@ public record SearchText(String raw, List<String> tokens) {
     }
 
     /**
-     * Faltet in der Reihenfolge des SQL-Ausdrucks {@code immutable_unaccent(lower(…))}: zuerst die Ausnahmetabelle,
-     * dann Kleinschreibung ({@link Locale#ROOT}), NFD und Entfernen der Akzentzeichen.
+     * Faltet wie der SQL-Ausdruck {@code immutable_unaccent(lower(…))}: zuerst Kleinschreibung ({@link Locale#ROOT}),
+     * dann je Zeichen die Ausnahmetabelle {@link UnaccentExceptions}, sonst NFD, am Ende Entfernen der Akzentzeichen.
+     * Ein Tabellenwert bleibt unzerlegt, denn {@code unaccent} lässt manche Zeichen unverändert, die NFD zerlegen
+     * würde (etwa ǣ). Die Tabelle braucht deshalb nur Kleinbuchstaben als Schlüssel.
      */
     public static String fold(String s) {
-        var mapped = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            String replacement = EXCEPTIONS.get(c);
+        String lower = s.toLowerCase(Locale.ROOT);
+        var folded = new StringBuilder(lower.length());
+        for (int i = 0; i < lower.length(); i++) {
+            char c = lower.charAt(i);
+            String replacement = UnaccentExceptions.MAP.get(c);
             if (replacement == null) {
-                mapped.append(c);
+                folded.append(Normalizer.normalize(String.valueOf(c), Normalizer.Form.NFD));
             } else {
-                mapped.append(replacement);
+                folded.append(replacement);
             }
         }
-        String decomposed = Normalizer.normalize(mapped.toString().toLowerCase(Locale.ROOT), Normalizer.Form.NFD);
-        return COMBINING_MARKS.matcher(decomposed).replaceAll("");
+        return COMBINING_MARKS.matcher(folded).replaceAll("");
     }
 }
