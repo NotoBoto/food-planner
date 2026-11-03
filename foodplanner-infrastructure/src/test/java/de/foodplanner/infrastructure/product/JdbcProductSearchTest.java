@@ -104,6 +104,42 @@ class JdbcProductSearchTest {
         assertThat(ids(text("milch"))).containsExactly(exact, prefix, infix);
     }
 
+    /**
+     * Nur der Bonus für ein exaktes Wort (+0,5) erklärt die Reihenfolge: Ohne Bonus läge B bei 0,6 × 1,0 = 0,6 und
+     * mit nur dem Wortanfangsbonus bei 0,6 × 1,25 = 0,75, beides unter A (Infix, ≈ 0,818). Alphabetisch käme A
+     * ebenfalls zuerst. Mit dem Bonus liegt B bei 0,6 × 1,5 = 0,9.
+     */
+    @Test
+    void exactWordBonusLiftsBrandAboveBetterRawName() {
+        double nameA = wordSimilarity("schokolade", "vollmilchschokolade");
+        double brandB = wordSimilarity("schokolade", "schokolade");
+        assertThat(0.6 * (brandB + 0.25)).isLessThan(nameA);
+        assertThat(0.6 * (brandB + 0.5)).isGreaterThan(nameA);
+        assertThat(wordSimilarity("schokolade", "zwieback")).isZero();
+        long a = product("Vollmilchschokolade").insert();
+        long b = product("Zwieback").brand("Schokolade").insert();
+
+        assertThat(ids(text("schokolade"))).containsExactly(b, a);
+    }
+
+    /**
+     * Nur der Wortanfangsbonus (+0,25) erklärt die Reihenfolge: Ohne Bonus läge B bei 0,6 × 0,857 ≈ 0,514, unter A
+     * (Infix, ≈ 0,571), und alphabetisch käme A ebenfalls zuerst. Mit dem Bonus liegt B bei 0,6 × 1,107 ≈ 0,664.
+     */
+    @Test
+    void wordStartBonusLiftsBrandAboveBetterRawName() {
+        double nameA = wordSimilarity("butter", "erdnussbutterkekse");
+        double brandB = wordSimilarity("butter", "butterland");
+        assertThat(nameA).isGreaterThanOrEqualTo(0.4);
+        assertThat(0.6 * brandB).isLessThan(nameA);
+        assertThat(0.6 * (brandB + 0.25)).isGreaterThan(nameA);
+        assertThat(wordSimilarity("butter", "zwieback")).isZero();
+        long a = product("Erdnussbutterkekse").insert();
+        long b = product("Zwieback").brand("Butterland").insert();
+
+        assertThat(ids(text("butter"))).containsExactly(b, a);
+    }
+
     @Test
     void productWithoutBrandOrCategoryIsFoundByName() {
         long id = product("Haferflocken zart").insert();
@@ -253,6 +289,51 @@ class JdbcProductSearchTest {
                 search.text(SearchText.parse("milch"), NONE, SearchSort.PRICE_ASC, new PageRequest(3, 100));
         assertThat(byPricePage3.items()).isEmpty();
         assertThat(byPricePage3.totalCount()).isEqualTo(200);
+    }
+
+    /**
+     * Erst der Deckel nach Score, dann die Umsortierung (Entscheidung 7): Fünf billige Treffer mit niedrigem Score
+     * („Vollmilch n“, nur Infix) fallen aus den 200 besten und dürfen auch bei {@code PRICE_ASC} nicht auftauchen,
+     * obwohl sie die billigsten sind. Würde zuerst nach Preis sortiert und dann gedeckelt, stünden sie vorne.
+     */
+    @Test
+    void capSelectsByScoreBeforeOtherSortsReorder() {
+        List<Long> skus = new ArrayList<>();
+        for (int i = 1; i <= 205; i++) {
+            skus.add((long) i);
+        }
+        jdbc.sql("""
+                        INSERT INTO product (aldi_sku, name, package_grams, unit, source)
+                        SELECT 'cap-' || n, 'Milch ' || n, 1000, 'G', 'ALDI' FROM unnest(CAST(:n AS bigint[])) n""")
+                .param("n", skus.toArray(Long[]::new))
+                .update();
+        List<Long> cheapLowScore = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            cheapLowScore.add(product("Vollmilch " + i).price(10).insert());
+        }
+        jdbc.sql("""
+                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
+                        SELECT id, 100 + id % 50, 'aldi-sued.de', now(), true FROM product WHERE aldi_sku LIKE 'cap-%'""")
+                .update();
+        // Vorbedingung: „milch“ ist in „Milch n“ ein exaktes Wort, in „Vollmilch n“ nur Infix.
+        assertThat(wordSimilarity("milch", "milch 1") + 0.5).isGreaterThan(wordSimilarity("milch", "vollmilch 1"));
+
+        List<Long> relevanceIds = allIds(SearchSort.RELEVANCE);
+        List<Long> priceIds = allIds(SearchSort.PRICE_ASC);
+
+        assertThat(relevanceIds).hasSize(200).doesNotContainAnyElementsOf(cheapLowScore);
+        assertThat(priceIds).hasSize(200).doesNotContainAnyElementsOf(cheapLowScore)
+                .containsExactlyInAnyOrderElementsOf(relevanceIds);
+        assertThat(search.text(SearchText.parse("milch"), NONE, SearchSort.PRICE_ASC, new PageRequest(1, 100))
+                .items().getFirst().priceCents()).isGreaterThanOrEqualTo(100);
+    }
+
+    private List<Long> allIds(SearchSort sort) {
+        List<Long> all = new ArrayList<>();
+        for (int page = 1; page <= 2; page++) {
+            all.addAll(ids(search.text(SearchText.parse("milch"), NONE, sort, new PageRequest(page, 100))));
+        }
+        return all;
     }
 
     @Test
