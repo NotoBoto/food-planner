@@ -9,9 +9,9 @@ import com.tngtech.archunit.junit.ArchTest;
 import java.util.List;
 
 /**
- * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Die Regeln für domain bestehen vorerst auch
- * leer ({@code allowEmptyShould(true)} in {@link ArchitectureTest}); fiele ein Modul aus dem Import, bemerkte das
- * sonst keine Regel.
+ * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Die Regeln in {@link ArchitectureTest} bestehen
+ * nicht leer; fiele ein Modul aus dem Import, schlüge dort die Regel für dessen Paket an, diese Prüfung benennt die
+ * Ursache.
  */
 @AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ModuleImportTest {
@@ -20,7 +20,7 @@ class ModuleImportTest {
     void importsClassesOfEveryModule(JavaClasses classes) {
         // maven-compiler-plugin legt package-info.class auch ohne Annotationen an (createMissingPackageInfoClass)
         assertThat(List.of(
-                "de.foodplanner.domain.package-info",
+                "de.foodplanner.domain.search.SearchText",
                 "de.foodplanner.application.package-info",
                 "de.foodplanner.infrastructure.package-info",
                 "de.foodplanner.api.ApiApplication",
