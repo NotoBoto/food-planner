@@ -133,6 +133,15 @@ class ProductSearchEndpointTest {
                 .andExpect(jsonPath("$.errors.minPriceCents").exists());
     }
 
+    @Test
+    void qLongerThan200CharactersIs400() throws Exception {
+        mockMvc.perform(get("/api/v1/products/search").param("q", "a".repeat(201)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.q").value("darf höchstens 200 Zeichen lang sein"));
+        mockMvc.perform(get("/api/v1/products/search").param("q", "a".repeat(200)))
+                .andExpect(status().isOk());
+    }
+
     private long product(String sku, String offCode, String name, String unit, int grams, long cents) {
         long id = jdbc.sql("""
                         INSERT INTO product (aldi_sku, off_code, name, category, package_grams, unit, source)

@@ -10,7 +10,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
 
-/** Deckt die Produktivkonfiguration in {@code application.properties} ab (§5.5). */
+/** Die API bekommt die Schwelle aus der Auto-Konfiguration von {@code infrastructure}, ohne eigene Einstellung (§5.5). */
 @SpringBootTest
 @Import(PostgresTestConfiguration.class)
 class ConnectionThresholdTest {

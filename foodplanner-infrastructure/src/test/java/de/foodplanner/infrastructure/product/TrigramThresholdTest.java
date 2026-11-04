@@ -12,7 +12,8 @@ import de.foodplanner.infrastructure.InfrastructureTestApplication;
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
 
 /**
- * Die Trigramm-Schwelle der Suche (§5.5) kommt aus {@code connection-init-sql} des Pools, nicht aus der Datenbank.
+ * Die Trigramm-Schwelle der Suche (§5.5) kommt aus {@code connectionInitSql} des Pools, gesetzt von
+ * {@link TrigramThresholdAutoConfiguration}, nicht aus der Datenbank.
  */
 @SpringBootTest(classes = InfrastructureTestApplication.class)
 @Import(PostgresTestConfiguration.class)

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
 
 /**
@@ -24,8 +25,17 @@ import jakarta.validation.Path;
 @RestControllerAdvice
 class ApiExceptionHandler {
 
+    /**
+     * Nur Verletzungen an Methodenparametern sind Fehler der Anfrage. Eine Verletzung am Rückgabewert oder an einem
+     * Objekt, das der Server selbst gebaut hat, ist ein Serverfehler; sie wird weitergeworfen und endet als 500.
+     */
     @ExceptionHandler(ConstraintViolationException.class)
     ProblemDetail constraintViolation(ConstraintViolationException exception) {
+        if (exception.getConstraintViolations().isEmpty()
+                || !exception.getConstraintViolations().stream()
+                        .allMatch(violation -> isParameterViolation(violation.getPropertyPath()))) {
+            throw exception;
+        }
         Map<String, List<String>> messages = new TreeMap<>();
         for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
             messages.computeIfAbsent(lastNode(violation.getPropertyPath()), key -> new ArrayList<>())
@@ -41,11 +51,25 @@ class ApiExceptionHandler {
         return problem;
     }
 
-    /** Schlüssel ist der Name des letzten Knotens, z. B. {@code pageSize} aus {@code handle.query.pageSize}. */
+    private static boolean isParameterViolation(Path path) {
+        for (Path.Node node : path) {
+            if (node.getKind() == ElementKind.PARAMETER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Schlüssel ist der Name des letzten benannten Knotens, z. B. {@code pageSize} aus {@code handle.query.pageSize}.
+     * Bean-Knoten einer klassenweiten Prüfung haben keinen Namen; dann zählt der Knoten davor, etwa {@code query}.
+     */
     private static String lastNode(Path path) {
         String name = "";
         for (Path.Node node : path) {
-            name = node.getName();
+            if (node.getName() != null) {
+                name = node.getName();
+            }
         }
         return name;
     }

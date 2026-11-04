@@ -20,8 +20,10 @@ import de.foodplanner.domain.search.SearchText;
  * {@link ProductSearch} über PostgreSQL mit pg_trgm (§5.5). Sichtbar ist nur, was {@link VisibleProducts#FROM}
  * zulässt (§4.3).
  *
- * <p>Jeder Weg baut eine CTE {@code hits} und stellt darauf zwei Abfragen: die Zählung und die Seite. Beide teilen
- * damit dasselbe {@code WHERE}. Werte gehen nur als benannte Parameter hinein. Im SQL-Text entstehen in Java nur die
+ * <p>Jeder Weg baut eine CTE {@code hits} und liest daraus in einer einzigen Abfrage die Seite und per
+ * {@code count(*) OVER ()} die Gesamtzahl: ein Snapshot, und der Score wird nur einmal berechnet. Nur eine Seite hinter
+ * dem Ende, die keine Zeile liefert, braucht eine zweite Abfrage für die Zählung. Werte gehen nur als benannte
+ * Parameter hinein. Im SQL-Text entstehen in Java nur die
  * {@code ORDER BY}-Klausel (aus {@link SearchSort}) und die Zahl der Token-Platzhalter {@code :t0}, {@code :t1}, ….
  *
  * <p>Lexikalisch trifft ein Produkt, wenn jedes Token per {@code <%} (Schwelle
@@ -67,9 +69,9 @@ class JdbcProductSearch implements ProductSearch {
 
     @Override
     public PagedResult<ProductSummary> text(SearchText text, SearchFilter filter, SearchSort sort, PageRequest page) {
+        // Das Routing (leerer Text → browse) liegt im Use Case; hier ist ein leerer Text ein Aufruffehler.
         if (text.isEmpty()) {
-            // Leere Anfrage: kein Limit, RELEVANCE heißt Sortierung nach Name (§5.5).
-            return browse(filter, sort, page);
+            throw new IllegalArgumentException("Lexikalische Suche braucht mindestens ein Token");
         }
         Map<String, Object> params = new HashMap<>();
         List<String> conditions = new ArrayList<>();
@@ -147,20 +149,24 @@ class JdbcProductSearch implements ProductSearch {
     private PagedResult<ProductSummary> run(String hits, Map<String, Object> params, String orderBy,
             PageRequest page) {
         String with = "WITH hits AS (" + hits + ") ";
-        long total = jdbc.sql(with + "SELECT count(*) FROM hits")
-                .params(params)
-                .query(Long.class)
-                .single();
-        if (page.offset() >= total) {
-            return PagedResult.of(List.of(), page, total);
-        }
-        List<ProductSummary> items = jdbc.sql(with + "SELECT * FROM hits ORDER BY " + orderBy
-                        + " LIMIT :pageSize OFFSET :offset")
+        long[] total = {0};
+        List<ProductSummary> items = jdbc.sql(with + "SELECT *, count(*) OVER () AS total_count FROM hits ORDER BY "
+                        + orderBy + " LIMIT :pageSize OFFSET :offset")
                 .params(params)
                 .param("pageSize", page.pageSize())
                 .param("offset", page.offset())
-                .query(ProductSummaryRowMapper.INSTANCE)
+                .query((rs, rowNum) -> {
+                    total[0] = rs.getLong("total_count");
+                    return ProductSummaryRowMapper.INSTANCE.mapRow(rs, rowNum);
+                })
                 .list();
-        return PagedResult.of(items, page, total);
+        if (items.isEmpty() && page.offset() > 0) {
+            // Seite hinter dem Ende: keine Zeile trägt die Gesamtzahl.
+            total[0] = jdbc.sql(with + "SELECT count(*) FROM hits")
+                    .params(params)
+                    .query(Long.class)
+                    .single();
+        }
+        return PagedResult.of(items, page, total[0]);
     }
 }

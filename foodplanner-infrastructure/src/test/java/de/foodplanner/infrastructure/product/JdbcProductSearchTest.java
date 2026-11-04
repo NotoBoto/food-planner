@@ -2,6 +2,7 @@ package de.foodplanner.infrastructure.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.sql.Types;
@@ -155,6 +156,12 @@ class JdbcProductSearchTest {
 
         assertThatCode(() -> text("o'neil c++ 50% \\ (")).doesNotThrowAnyException();
         assertThat(text("o'neil c++ 50% \\ (").totalCount()).isZero();
+    }
+
+    @Test
+    void emptyTextIsRejectedBecauseRoutingBelongsToTheUseCase() {
+        assertThatThrownBy(() -> search.text(SearchText.parse(" %! "), NONE, SearchSort.RELEVANCE, PAGE1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

@@ -70,4 +70,15 @@ class SearchProductsQueryValidationTest {
         assertThat(validate(null, 400L, SearchSort.RELEVANCE, 1, 20)).isEmpty();
         assertThat(validate(500L, null, SearchSort.RELEVANCE, 1, 20)).isEmpty();
     }
+
+    @Test
+    void qIsLimitedTo200Characters() {
+        SearchProductsQuery atLimit = new SearchProductsQuery("a".repeat(200), null, null, null, null,
+                SearchSort.RELEVANCE, 1, 20);
+        SearchProductsQuery tooLong = new SearchProductsQuery("a".repeat(201), null, null, null, null,
+                SearchSort.RELEVANCE, 1, 20);
+
+        assertThat(validator.validate(atLimit)).isEmpty();
+        assertViolation(validator.validate(tooLong), "q", "darf höchstens 200 Zeichen lang sein");
+    }
 }

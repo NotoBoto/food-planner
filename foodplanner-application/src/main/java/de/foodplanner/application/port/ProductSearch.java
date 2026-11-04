@@ -11,6 +11,10 @@ public interface ProductSearch {
     /** Suche ohne Text: alle sichtbaren Produkte, {@code RELEVANCE} bedeutet Sortierung nach Name (§5.5). */
     PagedResult<ProductSummary> browse(SearchFilter filter, SearchSort sort, PageRequest page);
 
-    /** Lexikalische Suche über die besten Treffer nach Score; die Sortierung ordnet diese Menge um (§5.5). */
+    /**
+     * Lexikalische Suche über die besten Treffer nach Score; die Sortierung ordnet diese Menge um (§5.5).
+     *
+     * @throws IllegalArgumentException wenn {@code text} keine Tokens hat; leere Anfragen gehen an {@link #browse}
+     */
     PagedResult<ProductSummary> text(SearchText text, SearchFilter filter, SearchSort sort, PageRequest page);
 }
