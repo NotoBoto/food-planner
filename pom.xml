@@ -18,6 +18,7 @@
         <java.version>25</java.version>
         <picocli.version>4.7.7</picocli.version>
         <archunit.version>1.5.1</archunit.version>
+        <jsoup.version>1.18.3</jsoup.version>
     </properties>
 
     <modules>
@@ -71,6 +72,11 @@
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
                 <version>${archunit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${jsoup.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
