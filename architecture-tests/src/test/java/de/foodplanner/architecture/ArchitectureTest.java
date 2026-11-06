@@ -8,9 +8,9 @@ import com.tngtech.archunit.lang.ArchRule;
 /**
  * Wendet die Regeln aus {@link ArchitectureRules} auf die Produktionsklassen aller Module an.
  *
- * <p>domain und application haben noch keine Klassen; ihre Regeln dürfen deshalb vorerst leer bestehen. Sobald ein
- * Modul seine erste Klasse hat, {@code allowEmptyShould(true)} bei seinen Regeln entfernen und die Klasse in
- * {@link ModuleImportTest} aufnehmen (#8, #9).
+ * <p>domain hat noch keine Klassen; seine Regeln dürfen deshalb vorerst leer bestehen. Sobald domain seine erste Klasse
+ * hat, {@code allowEmptyShould(true)} bei seinen Regeln entfernen und die Klasse in {@link ModuleImportTest} aufnehmen
+ * (#8, #9). Die Regeln für application prüfen seit #23 echte Klassen.
  */
 @AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
@@ -32,9 +32,9 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule applicationOnlyUsesAllowedLibraries =
-            ArchitectureRules.applicationOnlyUsesAllowedLibraries(ArchitectureRules.ROOT).allowEmptyShould(true);
+            ArchitectureRules.applicationOnlyUsesAllowedLibraries(ArchitectureRules.ROOT);
 
     @ArchTest
     static final ArchRule applicationUsesNoNetworkOrJdbc =
-            ArchitectureRules.applicationUsesNoNetworkOrJdbc(ArchitectureRules.ROOT).allowEmptyShould(true);
+            ArchitectureRules.applicationUsesNoNetworkOrJdbc(ArchitectureRules.ROOT);
 }
