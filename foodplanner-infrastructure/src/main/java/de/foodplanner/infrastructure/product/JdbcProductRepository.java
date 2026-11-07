@@ -35,8 +35,10 @@ class JdbcProductRepository implements ProductRepository {
 
     @Override
     public List<String> categories() {
-        return jdbc.sql("SELECT DISTINCT p.category FROM " + VisibleProducts.FROM
-                        + " WHERE p.category IS NOT NULL ORDER BY p.category")
+        // Deutsche Sortierung unabhängig von der Datenbank-Collation: unter einer C-Locale stünde „Äpfel“ hinter „Zucker“.
+        // Bei DISTINCT muss die Sortierung im SELECT stehen; de-x-icu ist deterministisch, DISTINCT bleibt also gleich.
+        return jdbc.sql("SELECT DISTINCT p.category COLLATE \"de-x-icu\" AS category FROM " + VisibleProducts.FROM
+                        + " WHERE p.category IS NOT NULL ORDER BY category")
                 .query(String.class)
                 .list();
     }

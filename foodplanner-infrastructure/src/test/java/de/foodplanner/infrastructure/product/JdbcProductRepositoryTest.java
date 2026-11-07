@@ -93,8 +93,10 @@ class JdbcProductRepositoryTest {
         price(product("1004", null), "2026-11-02T10:00:00Z", true);
         price(product("1005", "Käse"), "2026-11-02T10:00:00Z", false); // nur abgelöster Preis
         product("1006", "Fleisch"); // ohne Preis
+        price(product("1007", "Zucker"), "2026-11-02T10:00:00Z", true);
+        price(product("1008", "Äpfel"), "2026-11-02T10:00:00Z", true); // unter einer C-Locale hinter „Zucker“
 
-        assertThat(repository.categories()).containsExactly("Brot", "Obst");
+        assertThat(repository.categories()).containsExactly("Äpfel", "Brot", "Obst", "Zucker");
     }
 
     @Test
