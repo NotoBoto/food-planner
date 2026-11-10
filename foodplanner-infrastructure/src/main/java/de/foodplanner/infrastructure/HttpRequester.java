@@ -40,14 +40,13 @@ public class HttpRequester implements AutoCloseable {
         try {
             return executor.submit(() -> sendWithRetry(uri)).get();
         } catch (ExecutionException exception) {
-            Throwable cause = exception.getCause();
-            if (cause instanceof IOException ioException) {
+            if (exception.getCause() instanceof IOException ioException) {
                 throw ioException;
             }
-            if (cause instanceof InterruptedException interruptedException) {
+            if (exception.getCause() instanceof InterruptedException interruptedException) {
                 throw interruptedException;
             }
-            throw new IOException("HTTP-Anfrage fehlgeschlagen: " + uri, cause);
+            throw new IOException("HTTP-Anfrage fehlgeschlagen: " + uri, exception.getCause());
         }
     }
 
