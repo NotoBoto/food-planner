@@ -16,9 +16,7 @@ export function Layout() {
               Einkaufsliste
             </NavLink>
           </nav>
-          <NavLink to="/admin" className={linkClass}>
-            Admin
-          </NavLink>
+          {/* Kein Link zum Admin: die Seite ist nur direkt über /admin erreichbar. */}
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">
