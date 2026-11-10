@@ -10,6 +10,7 @@ import de.foodplanner.application.PriceScraper;
 import de.foodplanner.application.ScrapedPage;
 import de.foodplanner.application.ScrapedPageRepository;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
@@ -71,7 +72,7 @@ public class AldiPriceScraper implements PriceScraper {
             }
             return new ScrapeReport(entries.size(), fetched, skipped);
         } catch (IOException exception) {
-            throw new IllegalStateException("Aldi-Abruf fehlgeschlagen: " + exception.getMessage(), exception);
+            throw new UncheckedIOException("Aldi-Abruf fehlgeschlagen: " + exception.getMessage(), exception);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Aldi-Abruf wurde unterbrochen", exception);
