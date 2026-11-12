@@ -19,6 +19,9 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -52,31 +55,63 @@ public class AldiPriceScraper implements PriceScraper {
             List<SiteMapURL> entries = readEntries(sitemapUri, sitemapResponse.body()).stream()
                     .limit(properties.aldiMaxProducts())
                     .toList();
-            int fetched = 0;
             int skipped = 0;
+            List<FetchEntry> toFetch = new java.util.ArrayList<>();
             for (SiteMapURL entry : entries) {
                 URI productUri = URI.create(entry.getUrl().toString());
                 ensureAllowed(rules, productUri);
                 Instant lastModified = entry.getLastModified() == null
                         ? null : entry.getLastModified().toInstant();
                 if (!full && pages.findByUrl(productUri)
-                        .map(previous -> Objects.equals(previous.lastModified(), lastModified))
+                        .map(previous -> lastModified != null
+                                && Objects.equals(previous.lastModified(), lastModified))
                         .orElse(false)) {
                     skipped++;
                     continue;
                 }
-                HttpResponse<String> productResponse = requester.get(productUri);
-                requireSuccess(productUri, productResponse);
-                pages.save(new ScrapedPage(productUri, lastModified, clock.instant()));
-                fetched++;
+                toFetch.add(new FetchEntry(productUri, lastModified));
+            }
+            int fetched = 0;
+            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+                List<Future<Void>> futures = toFetch.stream()
+                        .map(entry -> executor.submit((java.util.concurrent.Callable<Void>) () -> {
+                            fetchAndSave(entry);
+                            return null;
+                        }))
+                        .toList();
+                for (Future<Void> future : futures) {
+                    future.get();
+                    fetched++;
+                }
             }
             return new ScrapeReport(entries.size(), fetched, skipped);
+        } catch (ExecutionException exception) {
+            if (exception.getCause() instanceof IOException ioException) {
+                throw new UncheckedIOException("Aldi-Abruf fehlgeschlagen: " + ioException.getMessage(), ioException);
+            }
+            if (exception.getCause() instanceof InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Aldi-Abruf wurde unterbrochen", interruptedException);
+            }
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("Aldi-Abruf fehlgeschlagen", exception.getCause());
         } catch (IOException exception) {
             throw new UncheckedIOException("Aldi-Abruf fehlgeschlagen: " + exception.getMessage(), exception);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Aldi-Abruf wurde unterbrochen", exception);
         }
+    }
+
+    private void fetchAndSave(FetchEntry entry) throws IOException, InterruptedException {
+        HttpResponse<String> productResponse = requester.get(entry.url());
+        requireSuccess(entry.url(), productResponse);
+        pages.save(new ScrapedPage(entry.url(), entry.lastModified(), clock.instant()));
+    }
+
+    private record FetchEntry(URI url, Instant lastModified) {
     }
 
     private BaseRobotRules readRules(URI robotsUri) throws IOException, InterruptedException {
