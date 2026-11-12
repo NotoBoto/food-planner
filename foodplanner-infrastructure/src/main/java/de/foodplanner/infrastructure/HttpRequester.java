@@ -8,14 +8,12 @@ import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Semaphore;
 import org.springframework.stereotype.Component;
 
 @Component
-public class HttpRequester implements AutoCloseable {
+public class HttpRequester {
 
     private final HttpClient client;
     private final HttpProperties properties;
@@ -23,7 +21,6 @@ public class HttpRequester implements AutoCloseable {
     private final Sleeper sleeper;
     private final Clock clock;
     private final Semaphore permits;
-    private final ExecutorService executor;
 
     public HttpRequester(HttpProperties properties, Clock clock, Sleeper sleeper,
             RequestGate gate, ScrapeProperties scrapeProperties) {
@@ -33,21 +30,10 @@ public class HttpRequester implements AutoCloseable {
         this.gate = gate;
         this.sleeper = sleeper;
         this.permits = new Semaphore(scrapeProperties.scrapeConcurrency());
-        this.executor = Executors.newVirtualThreadPerTaskExecutor();
     }
 
     public HttpResponse<String> get(URI uri) throws IOException, InterruptedException {
-        try {
-            return executor.submit(() -> sendWithRetry(uri)).get();
-        } catch (ExecutionException exception) {
-            if (exception.getCause() instanceof IOException ioException) {
-                throw ioException;
-            }
-            if (exception.getCause() instanceof InterruptedException interruptedException) {
-                throw interruptedException;
-            }
-            throw new IOException("HTTP-Anfrage fehlgeschlagen: " + uri, exception.getCause());
-        }
+        return sendWithRetry(uri);
     }
 
     private HttpResponse<String> sendWithRetry(URI uri) throws IOException, InterruptedException {
@@ -85,21 +71,20 @@ public class HttpRequester implements AutoCloseable {
         String retryAfter = response.headers().firstValue("Retry-After").orElse(null);
         if (retryAfter != null) {
             try {
-                return Duration.ofSeconds(Long.parseLong(retryAfter.trim()));
+                return nonNegative(Duration.ofSeconds(Long.parseLong(retryAfter.trim())));
             } catch (NumberFormatException ignored) {
                 try {
-                    return Duration.between(clock.instant(),
-                            ZonedDateTime.parse(retryAfter).toInstant());
+                    return nonNegative(Duration.between(clock.instant(),
+                            ZonedDateTime.parse(retryAfter, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()));
                 } catch (RuntimeException ignoredDate) {
                     // Fall back to the defined exponential delay for malformed headers.
                 }
             }
         }
-        return Duration.ofSeconds(1L << attempt);
+        return nonNegative(Duration.ofSeconds(1L << attempt));
     }
 
-    @Override
-    public void close() {
-        executor.close();
+    private static Duration nonNegative(Duration duration) {
+        return duration.isNegative() ? Duration.ZERO : duration;
     }
 }
