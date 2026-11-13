@@ -1,6 +1,7 @@
 package de.foodplanner.infrastructure.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +85,17 @@ class JdbcProductRepositoryTest {
 
         assertThat(repository.catalogInfo())
                 .isEqualTo(new CatalogInfo(3, Instant.parse("2026-11-02T11:00:00Z")));
+    }
+
+    /** catalogInfo zählt Zeilen des Joins; nur dieser Index garantiert eine Zeile je Produkt. */
+    @Test
+    void secondCurrentPriceForSameProductIsRejected() {
+        long product = product("1001");
+        price(product, "2026-11-02T10:00:00Z", true);
+
+        assertThatThrownBy(() -> price(product, "2026-11-02T11:00:00Z", true))
+                .isInstanceOf(DuplicateKeyException.class)
+                .hasMessageContaining("price_one_current_per_product");
     }
 
     @Test
