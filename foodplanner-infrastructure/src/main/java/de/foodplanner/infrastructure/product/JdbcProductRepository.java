@@ -1,6 +1,7 @@
 package de.foodplanner.infrastructure.product;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -30,5 +31,15 @@ class JdbcProductRepository implements ProductRepository {
                             lastScrapedAt == null ? null : lastScrapedAt.toInstant());
                 })
                 .single();
+    }
+
+    @Override
+    public List<String> categories() {
+        // Deutsche Sortierung unabhängig von der Datenbank-Collation: unter einer C-Locale stünde „Äpfel“ hinter „Zucker“.
+        // Bei DISTINCT muss die Sortierung im SELECT stehen; de-x-icu ist deterministisch, DISTINCT bleibt also gleich.
+        return jdbc.sql("SELECT DISTINCT p.category COLLATE \"de-x-icu\" AS category FROM " + VisibleProducts.FROM
+                        + " WHERE p.category IS NOT NULL ORDER BY category")
+                .query(String.class)
+                .list();
     }
 }
