@@ -22,9 +22,13 @@ final class ProductDetails {
     /** Produktseite bei Open Food Facts (§5.3). */
     static final String OFF_PRODUCT_URL = "https://world.openfoodfacts.org/product/";
 
+    /** {@code product.source} eines Produkts, das direkt aus einer Aldi-Seite entstanden ist (§4.3). */
+    private static final String ALDI_SOURCE = "ALDI";
+
     /**
      * Erwartete Spalten: {@code id, aldi_sku, off_code, name, brand, category, package_grams, unit, price_cents,
-     * protein100, fat100, carbs100, kcal100, aldi_url}; {@code price_cents} ist der aktuelle Preis oder {@code NULL}.
+     * protein100, fat100, carbs100, kcal100, source, aldi_url}; {@code price_cents} ist der aktuelle Preis oder
+     * {@code NULL}.
      */
     static final RowMapper<Row> ROW = (rs, rowNum) -> new Row(
             rs.getLong("id"),
@@ -40,6 +44,7 @@ final class ProductDetails {
             rs.getBigDecimal("fat100"),
             rs.getBigDecimal("carbs100"),
             rs.getBigDecimal("kcal100"),
+            rs.getString("source"),
             rs.getString("aldi_url"));
 
     /** Erwartete Spalten: {@code product_id, price_cents, scraped_at, is_current}. */
@@ -75,9 +80,10 @@ final class ProductDetails {
                 Nutrients.round(row.carbs100()),
                 Nutrients.round(row.kcal100()),
                 row.offCode(),
-                // Bei Aldi-Produkten stammt category aus der BreadcrumbList der Aldi-Seite (§6.1), ist also die
-                // Abteilung; bei anderen Produkten wäre es keine Aldi-Angabe.
-                row.aldiSku() == null ? null : row.category(),
+                // Nur bei source = ALDI stammt category aus der BreadcrumbList der Aldi-Seite (§4.3, §6.1) und ist die
+                // Abteilung. Ein freigegebenes Open-Food-Facts-Produkt trägt die Kategorie des Kandidaten, auch wenn es
+                // aus einer Aldi-Zeile stammt.
+                ALDI_SOURCE.equals(row.source()) ? row.category() : null,
                 row.aldiUrl(),
                 row.offCode() == null ? null : OFF_PRODUCT_URL + row.offCode(),
                 hasSuperseded ? List.copyOf(prices) : List.of());
@@ -98,6 +104,7 @@ final class ProductDetails {
             @Nullable BigDecimal fat100,
             @Nullable BigDecimal carbs100,
             @Nullable BigDecimal kcal100,
+            String source,
             @Nullable String aldiUrl) {
     }
 

@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  *                        ohne aktuellen Preis
  * @param offCode         EAN bei Open Food Facts
  * @param aldiDepartment  Aldi-Abteilung; die Kategorie aus der {@code BreadcrumbList} der Aldi-Seite (§6.1), daher nur
- *                        bei Produkten mit Artikelnummer gesetzt
+ *                        bei Produkten mit {@code source = ALDI} gesetzt (§4.3)
  * @param aldiUrl         URL der zuletzt abgerufenen Aldi-Seite, die an das Produkt gebunden ist
  * @param offUrl          Produktseite bei Open Food Facts, nur mit {@code offCode}
  * @param priceHistory    alle Preise, neueste zuerst; leer, wenn kein abgelöster Preis existiert

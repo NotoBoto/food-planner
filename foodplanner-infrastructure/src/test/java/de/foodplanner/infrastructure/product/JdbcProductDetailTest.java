@@ -2,16 +2,25 @@ package de.foodplanner.infrastructure.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import org.jspecify.annotations.Nullable;
+import javax.sql.DataSource;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.foodplanner.application.port.PriceHistoryEntry;
@@ -19,13 +28,15 @@ import de.foodplanner.application.port.ProductDetail;
 import de.foodplanner.domain.product.ProductKey;
 import de.foodplanner.infrastructure.InfrastructureTestApplication;
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
+import de.foodplanner.infrastructure.TestCatalog;
 
 /**
  * {@link JdbcProductRepository#detail(long)} und {@link JdbcProductRepository#details} gegen PostgreSQL: kein Filter
- * auf einen aktuellen Preis (§5.1), Preisverlauf, Links und Schlüsselabgleich (§4.2, §5.4).
+ * auf einen aktuellen Preis (§5.1), Preisverlauf, Links, Schlüsselabgleich (§4.2, §5.4) und eine feste Zahl an
+ * Abfragen.
  */
 @SpringBootTest(classes = InfrastructureTestApplication.class)
-@Import({PostgresTestConfiguration.class, JdbcProductRepository.class})
+@Import({PostgresTestConfiguration.class, TestCatalog.class, JdbcProductRepository.class})
 @Transactional
 class JdbcProductDetailTest {
 
@@ -33,19 +44,25 @@ class JdbcProductDetailTest {
     JdbcProductRepository repository;
 
     @Autowired
-    JdbcClient jdbc;
+    TestCatalog catalog;
+
+    @Autowired
+    DataSource dataSource;
 
     @Test
     void detailWithAllFields() {
-        long id = product("1001", "4008400401211", "Molkerei", "ML", 500, new BigDecimal("3.45"));
-        price(id, 189, "2026-11-01T10:00:00Z", false);
-        price(id, 199, "2026-11-02T10:00:00Z", true);
-        page(id, "https://www.aldi-sued.de/alt", "2026-11-01T09:00:00Z");
-        page(id, "https://www.aldi-sued.de/neu", "2026-11-02T09:00:00Z");
+        // Vier verschiedene Nährwerte, damit eine vertauschte Spalte auffällt; jeder mit Rundung HALF_UP.
+        long id = catalog.product("Fettarme Milch").sku("1001").offCode("4008400401211").brand("Marke")
+                .category("Molkerei").unit("ML").packageGrams(500).noPrice()
+                .nutrition("3.45", "46.05", "1.55", "4.84").insert();
+        catalog.price(id, 189, "2026-11-01T10:00:00Z", false);
+        catalog.price(id, 199, "2026-11-02T10:00:00Z", true);
+        catalog.page(id, "https://www.aldi-sued.de/alt", "2026-11-01T09:00:00Z");
+        catalog.page(id, "https://www.aldi-sued.de/neu", "2026-11-02T09:00:00Z");
 
         assertThat(repository.detail(id)).contains(new ProductDetail(
-                id, "aldi:1001", "Produkt 1001", "Marke", "Molkerei", 500, "ML", 199L, 398L,
-                new BigDecimal("3.5"), new BigDecimal("3.5"), new BigDecimal("3.5"), new BigDecimal("3.5"),
+                id, "aldi:1001", "Fettarme Milch", "Marke", "Molkerei", 500, "ML", 199L, 398L,
+                new BigDecimal("3.5"), new BigDecimal("1.6"), new BigDecimal("4.8"), new BigDecimal("46.1"),
                 "4008400401211", "Molkerei", "https://www.aldi-sued.de/neu",
                 "https://world.openfoodfacts.org/product/4008400401211",
                 List.of(entry(199, "2026-11-02T10:00:00Z", true), entry(189, "2026-11-01T10:00:00Z", false))));
@@ -53,14 +70,14 @@ class JdbcProductDetailTest {
 
     @Test
     void unknownIdIsEmpty() {
-        long id = product("1001", null, null, "G", 500, null);
+        long id = catalog.product("Roggenbrot").insert();
 
         assertThat(repository.detail(id + 1)).isEmpty();
     }
 
     @Test
     void productWithoutAnyPriceIsFoundWithoutPrice() {
-        long id = product("1001", null, null, "G", 500, null);
+        long id = catalog.product("Roggenbrot").noPrice().insert();
 
         ProductDetail detail = repository.detail(id).orElseThrow();
 
@@ -72,9 +89,9 @@ class JdbcProductDetailTest {
 
     @Test
     void productWithOnlySupersededPricesHasNoPriceButItsHistory() {
-        long id = product("1001", null, null, "G", 500, null);
-        price(id, 189, "2026-11-01T10:00:00Z", false);
-        price(id, 209, "2026-11-03T10:00:00Z", false);
+        long id = catalog.product("Roggenbrot").noPrice().insert();
+        catalog.price(id, 189, "2026-11-01T10:00:00Z", false);
+        catalog.price(id, 209, "2026-11-03T10:00:00Z", false);
 
         ProductDetail detail = repository.detail(id).orElseThrow();
 
@@ -86,8 +103,8 @@ class JdbcProductDetailTest {
 
     @Test
     void historyIsEmptyWithoutSupersededPrice() {
-        long id = product("1001", null, null, "G", 400, null);
-        price(id, 249, "2026-11-02T10:00:00Z", true);
+        long id = catalog.product("Nuss-Nougat-Creme").packageGrams(400).noPrice().insert();
+        catalog.price(id, 249, "2026-11-02T10:00:00Z", true);
 
         ProductDetail detail = repository.detail(id).orElseThrow();
 
@@ -98,7 +115,8 @@ class JdbcProductDetailTest {
 
     @Test
     void offProductHasNoAldiDepartmentOrUrl() {
-        long id = product(null, "4008400401211", "Brotaufstriche", "G", 400, null);
+        long id = catalog.product("Nuss-Nougat-Creme").noSku().offCode("4008400401211").category("Brotaufstriche")
+                .source("OPENFOODFACTS").insert();
 
         ProductDetail detail = repository.detail(id).orElseThrow();
 
@@ -109,9 +127,31 @@ class JdbcProductDetailTest {
         assertThat(detail.offUrl()).isEqualTo("https://world.openfoodfacts.org/product/4008400401211");
     }
 
+    /** Die Kategorie eines freigegebenen Kandidaten ist keine Aldi-Abteilung, auch mit Artikelnummer und Aldi-Seite. */
+    @Test
+    void approvedOffProductWithSkuHasNoAldiDepartmentButItsAldiUrl() {
+        long id = catalog.product("Nuss-Nougat-Creme").sku("1001").offCode("4008400401211")
+                .category("Spreads").source("OPENFOODFACTS").insert();
+        catalog.page(id, "https://www.aldi-sued.de/nougat", "2026-11-02T09:00:00Z");
+
+        ProductDetail detail = repository.detail(id).orElseThrow();
+
+        assertThat(detail.productKey()).isEqualTo("aldi:1001");
+        assertThat(detail.category()).isEqualTo("Spreads");
+        assertThat(detail.aldiDepartment()).isNull();
+        assertThat(detail.aldiUrl()).isEqualTo("https://www.aldi-sued.de/nougat");
+    }
+
+    @Test
+    void seedProductHasNoAldiDepartment() {
+        long id = catalog.product("Haferflocken").category("Frühstück").source("SEED").insert();
+
+        assertThat(repository.detail(id).orElseThrow().aldiDepartment()).isNull();
+    }
+
     @Test
     void aldiProductWithoutOffCodeOrPageHasNoLinks() {
-        long id = product("1001", null, null, "G", 500, null);
+        long id = catalog.product("Roggenbrot").sku("1001").insert();
 
         ProductDetail detail = repository.detail(id).orElseThrow();
 
@@ -123,9 +163,9 @@ class JdbcProductDetailTest {
 
     @Test
     void detailsByAldiAndOffKeys() {
-        long milk = product("1001", null, null, "G", 500, null);
-        long spread = product(null, "4008400401211", null, "G", 400, null);
-        product("1003", null, null, "G", 500, null);
+        long milk = catalog.product("Milch").sku("1001").insert();
+        long spread = catalog.product("Nuss-Nougat-Creme").noSku().offCode("4008400401211").insert();
+        catalog.product("Käse").sku("1003").insert();
 
         assertThat(repository.details(List.of(key("aldi:1001"), key("off:4008400401211"))))
                 .extracting(ProductDetail::id)
@@ -134,7 +174,7 @@ class JdbcProductDetailTest {
 
     @Test
     void unknownKeysAreMissing() {
-        long milk = product("1001", null, null, "G", 500, null);
+        long milk = catalog.product("Milch").sku("1001").insert();
 
         assertThat(repository.details(List.of(key("aldi:1001"), key("aldi:9999"), key("off:1234"))))
                 .extracting(ProductDetail::id)
@@ -143,7 +183,7 @@ class JdbcProductDetailTest {
 
     @Test
     void offKeyDoesNotFindProductWithAldiSku() {
-        long milk = product("1001", "4008400401211", null, "G", 500, null);
+        long milk = catalog.product("Milch").sku("1001").offCode("4008400401211").insert();
 
         assertThat(repository.details(List.of(key("off:4008400401211")))).isEmpty();
         assertThat(repository.details(List.of(key("aldi:1001"), key("off:4008400401211"))))
@@ -153,12 +193,12 @@ class JdbcProductDetailTest {
 
     @Test
     void detailsDoNotFilterOnCurrentPriceAndKeepHistoriesApart() {
-        long noPrice = product("1001", null, null, "G", 500, null);
-        long superseded = product("1002", null, null, "G", 500, null);
-        price(superseded, 189, "2026-11-01T10:00:00Z", false);
-        long current = product("1003", null, null, "G", 500, null);
-        price(current, 179, "2026-11-01T10:00:00Z", false);
-        price(current, 199, "2026-11-02T10:00:00Z", true);
+        long noPrice = catalog.product("Milch").sku("1001").noPrice().insert();
+        long superseded = catalog.product("Brot").sku("1002").noPrice().insert();
+        catalog.price(superseded, 189, "2026-11-01T10:00:00Z", false);
+        long current = catalog.product("Käse").sku("1003").noPrice().insert();
+        catalog.price(current, 179, "2026-11-01T10:00:00Z", false);
+        catalog.price(current, 199, "2026-11-02T10:00:00Z", true);
 
         List<ProductDetail> details = repository.details(List.of(key("aldi:1001"), key("aldi:1002"), key("aldi:1003")));
 
@@ -178,7 +218,7 @@ class JdbcProductDetailTest {
 
     @Test
     void duplicateKeysYieldEachProductOnce() {
-        long milk = product("1001", null, null, "G", 500, null);
+        long milk = catalog.product("Milch").sku("1001").insert();
 
         assertThat(repository.details(List.of(key("aldi:1001"), key("aldi:1001"))))
                 .extracting(ProductDetail::id)
@@ -187,9 +227,65 @@ class JdbcProductDetailTest {
 
     @Test
     void noKeysNoProducts() {
-        product("1001", null, null, "G", 500, null);
+        catalog.product("Milch").sku("1001").insert();
 
         assertThat(repository.details(List.of())).isEmpty();
+    }
+
+    /** Entscheidung 11 aus #21: zwei Abfragen, egal wie viele Produkte, mit welcher Historie und welchen Seiten. */
+    @Test
+    void batchAndDetailRunExactlyTwoStatements() {
+        List<ProductKey> keys = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            long id = catalog.product("Produkt " + i).sku("s" + i).noPrice().insert();
+            catalog.price(id, 100 + i, "2026-11-01T10:00:00Z", false);
+            catalog.price(id, 200 + i, "2026-11-02T10:00:00Z", true);
+            catalog.page(id, "https://www.aldi-sued.de/p" + i, "2026-11-02T09:00:00Z");
+            keys.add(key("aldi:s" + i));
+        }
+        long first = repository.details(List.of(keys.getFirst())).getFirst().id();
+        AtomicInteger statements = new AtomicInteger();
+        JdbcProductRepository counted = new JdbcProductRepository(JdbcClient.create(counting(statements)));
+
+        assertThat(counted.details(keys)).hasSize(30);
+        assertThat(statements).hasValue(2);
+
+        statements.set(0);
+        assertThat(counted.detail(first)).isPresent();
+        assertThat(statements).hasValue(2);
+
+        statements.set(0);
+        assertThat(counted.details(Collections.emptyList())).isEmpty();
+        assertThat(statements).hasValue(0);
+    }
+
+    /**
+     * Zählt vorbereitete Anweisungen. Die Verbindung kommt aus der laufenden Testtransaktion, damit die Testdaten
+     * sichtbar sind; {@code close()} gibt sie nur an Spring zurück.
+     */
+    private DataSource counting(AtomicInteger statements) {
+        return new DelegatingDataSource(dataSource) {
+            @Override
+            public Connection getConnection() {
+                Connection target = DataSourceUtils.getConnection(dataSource);
+                return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                        new Class<?>[] {Connection.class}, (proxy, method, args) -> {
+                            if (method.getName().equals("close")) {
+                                DataSourceUtils.releaseConnection(target, dataSource);
+                                return null;
+                            }
+                            if (method.getName().equals("prepareStatement")
+                                    || method.getName().equals("createStatement")) {
+                                statements.incrementAndGet();
+                            }
+                            try {
+                                return method.invoke(target, args);
+                            } catch (InvocationTargetException e) {
+                                throw e.getCause();
+                            }
+                        });
+            }
+        };
     }
 
     private static ProductKey key(String raw) {
@@ -198,47 +294,5 @@ class JdbcProductDetailTest {
 
     private static PriceHistoryEntry entry(long priceCents, String scrapedAt, boolean current) {
         return new PriceHistoryEntry(priceCents, Instant.parse(scrapedAt), current);
-    }
-
-    /** Legt ein Produkt an; {@code nutrient} gilt für alle vier Nährwerte, {@code null} für keinen. */
-    private long product(@Nullable String aldiSku, @Nullable String offCode, @Nullable String category, String unit,
-            int packageGrams, @Nullable BigDecimal nutrient) {
-        return jdbc.sql("""
-                        INSERT INTO product (aldi_sku, off_code, name, brand, category, package_grams, unit,
-                                             kcal100, protein100, fat100, carbs100, source)
-                        VALUES (CAST(:sku AS text), CAST(:off AS text),
-                                'Produkt ' || coalesce(CAST(:sku AS text), CAST(:off AS text)), 'Marke', :category,
-                                :grams, :unit, CAST(:nutrient AS numeric), CAST(:nutrient AS numeric),
-                                CAST(:nutrient AS numeric), CAST(:nutrient AS numeric), 'ALDI')
-                        RETURNING id""")
-                .param("sku", aldiSku)
-                .param("off", offCode)
-                .param("category", category)
-                .param("grams", packageGrams)
-                .param("unit", unit)
-                .param("nutrient", nutrient)
-                .query(Long.class)
-                .single();
-    }
-
-    private void price(long productId, long priceCents, String scrapedAt, boolean current) {
-        jdbc.sql("""
-                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
-                        VALUES (:productId, :price, 'aldi-sued.de', CAST(:scrapedAt AS timestamptz), :current)""")
-                .param("productId", productId)
-                .param("price", priceCents)
-                .param("scrapedAt", scrapedAt)
-                .param("current", current)
-                .update();
-    }
-
-    private void page(long productId, String url, String fetchedAt) {
-        jdbc.sql("""
-                        INSERT INTO scraped_page (url, fetched_at, product_id)
-                        VALUES (:url, CAST(:fetchedAt AS timestamptz), :productId)""")
-                .param("url", url)
-                .param("fetchedAt", fetchedAt)
-                .param("productId", productId)
-                .update();
     }
 }

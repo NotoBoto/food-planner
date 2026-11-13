@@ -1,12 +1,11 @@
 package de.foodplanner.infrastructure.product;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -63,7 +62,7 @@ class JdbcProductRepository implements ProductRepository {
      */
     private static final String DETAIL_SELECT = """
             SELECT p.id, p.aldi_sku, p.off_code, p.name, p.brand, p.category, p.package_grams, p.unit,
-                   cp.price_cents, p.protein100, p.fat100, p.carbs100, p.kcal100,
+                   cp.price_cents, p.protein100, p.fat100, p.carbs100, p.kcal100, p.source,
                    (SELECT sp.url FROM scraped_page sp WHERE sp.product_id = p.id
                      ORDER BY sp.fetched_at DESC, sp.id DESC LIMIT 1) AS aldi_url
             FROM product p
@@ -102,16 +101,17 @@ class JdbcProductRepository implements ProductRepository {
             return List.of();
         }
         Long[] ids = rows.stream().map(ProductDetails.Row::id).toArray(Long[]::new);
-        Map<Long, List<PriceHistoryEntry>> prices = new LinkedHashMap<>();
-        jdbc.sql("""
+        Map<Long, List<PriceHistoryEntry>> prices = jdbc.sql("""
                         SELECT product_id, price_cents, scraped_at, is_current FROM price
                         WHERE product_id = ANY(?)
                         ORDER BY scraped_at DESC, id DESC""")
                 .param(ids)
                 .query(ProductDetails.PRICE)
                 .list()
-                .forEach(price -> prices.computeIfAbsent(price.productId(), id -> new ArrayList<>())
-                        .add(price.entry()));
+                .stream()
+                // toList() behält je Produkt die Reihenfolge der Abfrage bei: neueste zuerst.
+                .collect(Collectors.groupingBy(ProductDetails.Price::productId,
+                        Collectors.mapping(ProductDetails.Price::entry, Collectors.toList())));
         return rows.stream()
                 .map(row -> ProductDetails.assemble(row, prices.getOrDefault(row.id(), List.of())))
                 .toList();
