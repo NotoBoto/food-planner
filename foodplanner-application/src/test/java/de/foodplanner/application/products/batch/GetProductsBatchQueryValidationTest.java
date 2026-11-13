@@ -48,4 +48,14 @@ class GetProductsBatchQueryValidationTest {
     void nullAndMalformedElementsAreNoViolation() {
         assertThat(validate(Arrays.asList(null, "foo", ""))).isEmpty();
     }
+
+    @Test
+    void everyKeyIsAtMost64Characters() {
+        String atLimit = "aldi:" + "1".repeat(59);
+        String tooLong = "aldi:" + "1".repeat(60);
+
+        assertThat(validate(List.of(atLimit))).isEmpty();
+        assertViolation(validate(Arrays.asList("aldi:1001", null, tooLong)),
+                "jeder Schlüssel darf höchstens 64 Zeichen lang sein");
+    }
 }
