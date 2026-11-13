@@ -14,8 +14,13 @@ public record ProductKey(String value) {
     private static final String ALDI = "aldi:";
     private static final String OFF = "off:";
 
-    /** Präfix in Kleinbuchstaben, danach ein nichtleerer Rest ohne Leerraum. */
-    private static final Pattern FORMAT = Pattern.compile("(aldi|off):(\\S+)");
+    /**
+     * Präfix in Kleinbuchstaben, danach ein nichtleerer Rest ohne Leerraum. {@code UNICODE_CHARACTER_CLASS}, damit auch
+     * Leerraum außerhalb von ASCII (etwa ein geschütztes Leerzeichen aus einer Kopie) nicht als Zeichen des Schlüssels
+     * gilt.
+     */
+    private static final Pattern FORMAT =
+            Pattern.compile("(aldi|off):(\\S+)", Pattern.UNICODE_CHARACTER_CLASS);
 
     /**
      * Die ALDI-SKU hat Vorrang; ohne sie gilt der Open-Food-Facts-Code.

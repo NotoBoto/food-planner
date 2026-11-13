@@ -57,7 +57,8 @@ class ProductKeyTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"", "foo", "1234567", "aldi:", "off:", "aldi", "ALDI:123", "ean:4008", " aldi:123",
-        "aldi:123 ", "aldi: 123", "aldi:12 34", "off:\t4008", ":123"})
+        "aldi:123 ", "aldi: 123", "aldi:12 34", "off:\t4008", ":123",
+        "aldi:1001\u00A0", "aldi:\u20071001", "off:40\u300008"})
     void malformedKeyIsEmpty(String raw) {
         assertThat(ProductKey.parse(raw)).isEmpty();
     }
