@@ -67,7 +67,8 @@ Die Seiten folgen Yaroslavs Skizzen. Für das Review gibt es keine Skizze. Scree
 sobald die Seiten stehen.
 
 Die Kopfzeile ist auf jeder Seite gleich: links der Schriftzug, daneben Suche und Einkaufsliste
-mit der Anzahl der Produkte, rechts abgesetzt Admin.
+mit der Anzahl der Produkte. Einen Link zum Review gibt es nicht, die Seite ist nur direkt über
+`/admin` erreichbar.
 
 ### Suche `/`
 
