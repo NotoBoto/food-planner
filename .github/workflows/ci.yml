@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs are cancelled; every commit on main keeps its own result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -26,6 +27,13 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+
+      # cache: maven covers ~/.m2/repository only, not the distribution mvnw downloads.
+      - name: Cache Maven wrapper
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
 
       # Testcontainers uses the Docker daemon that ubuntu-latest runners provide.
       - name: Build and test
