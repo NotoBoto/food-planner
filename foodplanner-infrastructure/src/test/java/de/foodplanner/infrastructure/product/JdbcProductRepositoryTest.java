@@ -11,12 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.foodplanner.application.port.CatalogInfo;
 import de.foodplanner.infrastructure.InfrastructureTestApplication;
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
+import de.foodplanner.infrastructure.TestCatalog;
 
 /**
  * {@link JdbcProductRepository#catalogInfo()} und damit die Sichtbarkeitsregel {@link VisibleProducts} gegen
@@ -24,7 +24,7 @@ import de.foodplanner.infrastructure.PostgresTestConfiguration;
  * gelten bleiben.
  */
 @SpringBootTest(classes = InfrastructureTestApplication.class)
-@Import({PostgresTestConfiguration.class, JdbcProductRepository.class})
+@Import({PostgresTestConfiguration.class, TestCatalog.class, JdbcProductRepository.class})
 @Transactional
 class JdbcProductRepositoryTest {
 
@@ -32,7 +32,7 @@ class JdbcProductRepositoryTest {
     JdbcProductRepository repository;
 
     @Autowired
-    JdbcClient jdbc;
+    TestCatalog catalog;
 
     @Test
     void emptyCatalogHasNoProductsAndNoScrapeTime() {
@@ -118,33 +118,14 @@ class JdbcProductRepositoryTest {
     }
 
     private long product(String aldiSku, String category) {
-        return jdbc.sql("""
-                        INSERT INTO product (aldi_sku, name, category, package_grams, unit, source)
-                        VALUES (:sku, 'Test ' || :sku, :category, 500, 'G', 'ALDI')
-                        RETURNING id""")
-                .param("sku", aldiSku)
-                .param("category", category)
-                .query(Long.class)
-                .single();
+        return catalog.product("Test " + aldiSku).sku(aldiSku).category(category).noPrice().insert();
     }
 
     private long product(String aldiSku) {
-        return jdbc.sql("""
-                        INSERT INTO product (aldi_sku, name, package_grams, unit, source)
-                        VALUES (:sku, 'Test ' || :sku, 500, 'G', 'ALDI')
-                        RETURNING id""")
-                .param("sku", aldiSku)
-                .query(Long.class)
-                .single();
+        return product(aldiSku, null);
     }
 
     private void price(long productId, String scrapedAt, boolean current) {
-        jdbc.sql("""
-                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
-                        VALUES (:productId, 199, 'aldi-sued.de', CAST(:scrapedAt AS timestamptz), :current)""")
-                .param("productId", productId)
-                .param("scrapedAt", scrapedAt)
-                .param("current", current)
-                .update();
+        catalog.price(productId, 199, scrapedAt, current);
     }
 }

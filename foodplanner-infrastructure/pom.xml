@@ -56,13 +56,14 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
-                        <!-- api und ingestion verwenden PostgresTestConfiguration aus den Tests dieses Moduls. -->
+                        <!-- api und ingestion verwenden PostgresTestConfiguration und TestCatalog aus den Tests dieses Moduls. -->
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
                         <configuration>
                             <includes>
                                 <include>de/foodplanner/infrastructure/PostgresTestConfiguration*</include>
+                                <include>de/foodplanner/infrastructure/TestCatalog*</include>
                             </includes>
                         </configuration>
                     </execution>
