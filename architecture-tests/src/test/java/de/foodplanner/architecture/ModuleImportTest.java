@@ -9,9 +9,9 @@ import com.tngtech.archunit.junit.ArchTest;
 import java.util.List;
 
 /**
- * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Die Regeln für domain und application
- * bestehen vorerst auch leer ({@code allowEmptyShould(true)} in {@link ArchitectureTest}); fiele ein Modul aus dem
- * Import, bemerkte das sonst keine Regel.
+ * Stellt sicher, dass der Import die Klassen der Module wirklich sieht. Die Regeln für domain bestehen vorerst auch
+ * leer ({@code allowEmptyShould(true)} in {@link ArchitectureTest}); fiele ein Modul aus dem Import, bemerkte das
+ * sonst keine Regel.
  */
 @AnalyzeClasses(packages = ArchitectureRules.ROOT, importOptions = ImportOption.DoNotIncludeTests.class)
 class ModuleImportTest {
