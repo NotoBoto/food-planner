@@ -35,14 +35,16 @@ class ProductDetailController {
         this.batch = batch;
     }
 
-    @GetMapping("/{id}")
+    /** Nur Ziffern: {@code GET /batch} trifft so keinen Detailpfad, sondern endet als 405 (falsche Methode). */
+    @GetMapping("/{id:\\d+}")
     ProductDetail detail(@PathVariable long id) {
         return getById.handle(new GetProductByIdQuery(id)).orElseThrow(() -> notFound(id));
     }
 
     @PostMapping("/batch")
-    List<ProductDetail> batch(@RequestBody GetProductsBatchQuery query) {
-        return batch.handle(query);
+    List<ProductDetail> batch(@RequestBody ProductBatchRequest request) {
+        // Keine Prüfung hier: Ein fehlendes keys wird zu null und vom @Validated-Handler gemeldet.
+        return batch.handle(new GetProductsBatchQuery(request.keys()));
     }
 
     /** {@code title} und {@code detail} zeigt das Frontend direkt an (§7.4); das Format vereinheitlicht #25. */

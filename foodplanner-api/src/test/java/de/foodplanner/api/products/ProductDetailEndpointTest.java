@@ -10,20 +10,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
+import de.foodplanner.infrastructure.TestCatalog;
 
 /**
  * Endpunktverträge von {@code GET /api/v1/products/{id}} und {@code POST /api/v1/products/batch} (§5.1, §5.4). Jeder
@@ -32,7 +31,7 @@ import de.foodplanner.infrastructure.PostgresTestConfiguration;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(PostgresTestConfiguration.class)
+@Import({PostgresTestConfiguration.class, TestCatalog.class})
 @Transactional
 class ProductDetailEndpointTest {
 
@@ -40,16 +39,16 @@ class ProductDetailEndpointTest {
     MockMvc mockMvc;
 
     @Autowired
-    JdbcClient jdbc;
+    TestCatalog catalog;
 
     @Test
     void detailContract() throws Exception {
-        long id = product("1001", "4008400401211", "Fettarme Milch 1,5 %", "ML", 500, "3.45");
-        price(id, 189, "2026-11-01T10:00:00Z", false);
-        price(id, 199, "2026-11-02T10:00:00Z", true);
-        jdbc.sql("INSERT INTO scraped_page (url, fetched_at, product_id) VALUES (?, now(), ?)")
-                .params("https://www.aldi-sued.de/de/p.fettarme-milch.1001.html", id)
-                .update();
+        // Vier verschiedene Nährwerte, damit eine vertauschte Spalte auffällt; jeder mit Rundung HALF_UP.
+        long id = catalog.product("Fettarme Milch 1,5 %").sku("1001").offCode("4008400401211").category("Molkerei")
+                .unit("ML").packageGrams(500).noPrice().nutrition("3.45", "46.05", "1.55", "4.84").insert();
+        catalog.price(id, 189, "2026-11-01T10:00:00Z", false);
+        catalog.price(id, 199, "2026-11-02T10:00:00Z", true);
+        catalog.page(id, "https://www.aldi-sued.de/de/p.fettarme-milch.1001.html", "2026-11-02T09:00:00Z");
 
         mockMvc.perform(get("/api/v1/products/{id}", id))
                 .andExpect(status().isOk())
@@ -57,7 +56,7 @@ class ProductDetailEndpointTest {
                         {"id":%d,"productKey":"aldi:1001","name":"Fettarme Milch 1,5 %%","brand":null,
                          "category":"Molkerei","packageGrams":500,"unit":"ML",
                          "priceCents":199,"pricePerKgCents":398,
-                         "protein100g":3.5,"fat100g":3.5,"carbs100g":3.5,"kcal100g":3.5,
+                         "protein100g":3.5,"fat100g":1.6,"carbs100g":4.8,"kcal100g":46.1,
                          "offCode":"4008400401211","aldiDepartment":"Molkerei",
                          "aldiUrl":"https://www.aldi-sued.de/de/p.fettarme-milch.1001.html",
                          "offUrl":"https://world.openfoodfacts.org/product/4008400401211",
@@ -69,17 +68,23 @@ class ProductDetailEndpointTest {
 
     @Test
     void unknownIdIs404() throws Exception {
-        long id = product("1001", null, "Roggenbrot", "G", 500, null);
+        long id = catalog.product("Roggenbrot").insert();
 
         mockMvc.perform(get("/api/v1/products/{id}", id + 1))
                 .andExpect(status().isNotFound());
     }
 
     @Test
+    void getOnBatchIsWrongMethod() throws Exception {
+        mockMvc.perform(get("/api/v1/products/batch"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
     void detailDoesNotFilterOnCurrentPrice() throws Exception {
-        long noPrice = product("1001", null, "Roggenbrot", "G", 500, null);
-        long superseded = product("1002", null, "Vollkornbrot", "G", 500, null);
-        price(superseded, 189, "2026-11-01T10:00:00Z", false);
+        long noPrice = catalog.product("Roggenbrot").noPrice().insert();
+        long superseded = catalog.product("Vollkornbrot").noPrice().insert();
+        catalog.price(superseded, 189, "2026-11-01T10:00:00Z", false);
 
         mockMvc.perform(get("/api/v1/products/{id}", noPrice))
                 .andExpect(status().isOk())
@@ -95,8 +100,7 @@ class ProductDetailEndpointTest {
 
     @Test
     void historyIsEmptyWithoutSupersededPrice() throws Exception {
-        long id = product("1001", null, "Roggenbrot", "G", 750, null);
-        price(id, 189, "2026-11-02T10:00:00Z", true);
+        long id = catalog.product("Roggenbrot").packageGrams(750).price(189).insert();
 
         mockMvc.perform(get("/api/v1/products/{id}", id))
                 .andExpect(status().isOk())
@@ -107,8 +111,7 @@ class ProductDetailEndpointTest {
 
     @Test
     void literPriceForMl() throws Exception {
-        long id = product("1001", null, "Olivenöl", "ML", 750, null);
-        price(id, 599, "2026-11-02T10:00:00Z", true);
+        long id = catalog.product("Olivenöl").unit("ML").packageGrams(750).price(599).insert();
 
         mockMvc.perform(get("/api/v1/products/{id}", id))
                 .andExpect(jsonPath("$.unit").value("ML"))
@@ -117,9 +120,8 @@ class ProductDetailEndpointTest {
 
     @Test
     void batchWithAldiAndOffKeys() throws Exception {
-        long milk = product("1001", null, "Fettarme Milch", "ML", 1000, null);
-        long spread = product(null, "4008400401211", "Nuss-Nougat-Creme", "G", 400, null);
-        price(milk, 109, "2026-11-02T10:00:00Z", true);
+        long milk = catalog.product("Fettarme Milch").sku("1001").price(109).insert();
+        long spread = catalog.product("Nuss-Nougat-Creme").noSku().offCode("4008400401211").noPrice().insert();
 
         batch("off:4008400401211", "aldi:1001")
                 .andExpect(status().isOk())
@@ -135,7 +137,7 @@ class ProductDetailEndpointTest {
 
     @Test
     void unknownAndMalformedKeysAreMissingWithoutError() throws Exception {
-        long milk = product("1001", null, "Fettarme Milch", "ML", 1000, null);
+        long milk = catalog.product("Fettarme Milch").sku("1001").insert();
 
         batch("aldi:9999", "aldi:1001", "off:1234", "foo", "aldi:")
                 .andExpect(status().isOk())
@@ -149,7 +151,7 @@ class ProductDetailEndpointTest {
 
     @Test
     void offKeyOfProductWithAldiSkuIsUnknown() throws Exception {
-        product("1001", "4008400401211", "Fettarme Milch", "ML", 1000, null);
+        catalog.product("Fettarme Milch").sku("1001").offCode("4008400401211").insert();
 
         batch("off:4008400401211")
                 .andExpect(status().isOk())
@@ -158,8 +160,8 @@ class ProductDetailEndpointTest {
 
     @Test
     void duplicatesOnceInOrderOfFirstAppearance() throws Exception {
-        long milk = product("1001", null, "Fettarme Milch", "ML", 1000, null);
-        long bread = product("1002", null, "Roggenbrot", "G", 500, null);
+        long milk = catalog.product("Fettarme Milch").sku("1001").insert();
+        long bread = catalog.product("Roggenbrot").sku("1002").insert();
 
         batch("aldi:1002", "aldi:1001", "aldi:1002")
                 .andExpect(status().isOk())
@@ -182,7 +184,7 @@ class ProductDetailEndpointTest {
 
     @Test
     void exactly200KeysIsOk() throws Exception {
-        product("1001", null, "Fettarme Milch", "ML", 1000, null);
+        catalog.product("Fettarme Milch").sku("1001").insert();
 
         batch(Collections.nCopies(200, "aldi:1001").toArray(String[]::new))
                 .andExpect(status().isOk())
@@ -196,40 +198,16 @@ class ProductDetailEndpointTest {
                 .andExpect(jsonPath("$.errors.keys").exists());
     }
 
+    @Test
+    void keyLongerThan64CharactersIs400() throws Exception {
+        batch("aldi:1001", "aldi:" + "1".repeat(60))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.keys").exists());
+    }
+
     private ResultActions batch(String... keys) throws Exception {
         String body = List.of(keys).stream().map(key -> "\"" + key + "\"")
                 .collect(Collectors.joining(",", "{\"keys\":[", "]}"));
         return mockMvc.perform(post("/api/v1/products/batch").contentType(MediaType.APPLICATION_JSON).content(body));
-    }
-
-    /** Legt ein Produkt an; {@code nutrient} gilt für alle vier Nährwerte, {@code null} für keinen. */
-    private long product(@Nullable String aldiSku, @Nullable String offCode, String name, String unit,
-            int packageGrams, @Nullable String nutrient) {
-        return jdbc.sql("""
-                        INSERT INTO product (aldi_sku, off_code, name, category, package_grams, unit,
-                                             kcal100, protein100, fat100, carbs100, source)
-                        VALUES (CAST(:sku AS text), CAST(:off AS text), :name, 'Molkerei', :grams, :unit,
-                                CAST(:n AS numeric), CAST(:n AS numeric), CAST(:n AS numeric), CAST(:n AS numeric),
-                                'ALDI')
-                        RETURNING id""")
-                .param("sku", aldiSku)
-                .param("off", offCode)
-                .param("name", name)
-                .param("grams", packageGrams)
-                .param("unit", unit)
-                .param("n", nutrient)
-                .query(Long.class)
-                .single();
-    }
-
-    private void price(long productId, long priceCents, String scrapedAt, boolean current) {
-        jdbc.sql("""
-                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
-                        VALUES (:productId, :price, 'aldi-sued.de', CAST(:scrapedAt AS timestamptz), :current)""")
-                .param("productId", productId)
-                .param("price", priceCents)
-                .param("scrapedAt", scrapedAt)
-                .param("current", current)
-                .update();
     }
 }
