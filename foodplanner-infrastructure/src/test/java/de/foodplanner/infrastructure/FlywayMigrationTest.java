@@ -45,13 +45,13 @@ class FlywayMigrationTest {
     }
 
     @Test
-    void productHasNoSearchColumnsYet() {
+    void productHasGeneratedSearchColumns() {
         assertThat(jdbc.sql("""
                         SELECT column_name FROM information_schema.columns
                         WHERE table_name = 'product' AND column_name LIKE 'search%'
                         """)
                 .query(String.class).list())
-                .isEmpty();
+                .containsExactlyInAnyOrder("search_name", "search_brand", "search_category");
     }
 
     @Test
