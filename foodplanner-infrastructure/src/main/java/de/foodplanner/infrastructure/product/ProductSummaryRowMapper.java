@@ -1,11 +1,8 @@
 package de.foodplanner.infrastructure.product;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.RowMapper;
 
 import de.foodplanner.application.port.ProductSummary;
@@ -14,8 +11,7 @@ import de.foodplanner.domain.product.ProductKey;
 
 /**
  * Baut aus einer Zeile von {@link JdbcProductSearch} ein {@link ProductSummary} (§5.1). Schlüssel und Kilopreis kommen
- * aus {@code domain}; Nährwerte werden auf eine Nachkommastelle gerundet ({@code HALF_UP}), {@code NULL} bleibt
- * {@code null}.
+ * aus {@code domain}; Nährwerte rundet {@link Nutrients}.
  *
  * <p>Erwartete Spalten: {@code id, aldi_sku, off_code, name, brand, category, package_grams, unit, price_cents,
  * protein100, fat100, carbs100, kcal100}.
@@ -41,13 +37,9 @@ final class ProductSummaryRowMapper implements RowMapper<ProductSummary> {
                 rs.getString("unit"),
                 priceCents,
                 PricePerKg.cents(priceCents, packageGrams),
-                nutrient(rs.getBigDecimal("protein100")),
-                nutrient(rs.getBigDecimal("fat100")),
-                nutrient(rs.getBigDecimal("carbs100")),
-                nutrient(rs.getBigDecimal("kcal100")));
-    }
-
-    private static @Nullable BigDecimal nutrient(@Nullable BigDecimal value) {
-        return value == null ? null : value.setScale(1, RoundingMode.HALF_UP);
+                Nutrients.round(rs.getBigDecimal("protein100")),
+                Nutrients.round(rs.getBigDecimal("fat100")),
+                Nutrients.round(rs.getBigDecimal("carbs100")),
+                Nutrients.round(rs.getBigDecimal("kcal100")));
     }
 }
