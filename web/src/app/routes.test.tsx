@@ -14,7 +14,7 @@ describe('Routing', () => {
     ['/', 'Produkte suchen'],
     ['/product/42', 'Produkt: 42'],
     ['/list', 'Einkaufsliste'],
-    ['/admin', 'Admin Dashboard'],
+    ['/admin', 'Review'],
   ])('zeigt unter %s die Überschrift „%s“', async (path, heading) => {
     renderPage(path)
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
