@@ -2,7 +2,8 @@ import { ApiError, parseProblem } from './errorHandling'
 
 // Holt Daten von der API. Bei einem Fehler wird eine ApiError geworfen.
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`/api/v1${path}`)
+  // Volle Adresse, damit derselbe Code im Browser und in den Tests (Node) funktioniert.
+  const response = await fetch(new URL(`/api/v1${path}`, window.location.origin))
 
   if (!response.ok) {
     const body = await response.json().catch(() => null)

@@ -1,0 +1,229 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "FoodPlanner API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/"
+  } ],
+  "paths" : {
+    "/api/v1/catalog/info" : {
+      "get" : {
+        "operationId" : "info",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CatalogInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "catalog-info-controller" ]
+      }
+    },
+    "/api/v1/categories" : {
+      "get" : {
+        "operationId" : "categories",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "categories-controller" ]
+      }
+    },
+    "/api/v1/products/search" : {
+      "get" : {
+        "operationId" : "search",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "category",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "minPriceCents",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "maxPriceCents",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        }, {
+          "in" : "query",
+          "name" : "minProtein100g",
+          "required" : false,
+          "schema" : {
+            "type" : "number"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "default" : "relevance",
+            "enum" : [ "relevance", "price_asc", "price_desc", "protein_desc", "kcal_asc" ]
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 1
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageSize",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PagedResultProductSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-search-controller" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CatalogInfo" : {
+        "type" : "object",
+        "properties" : {
+          "lastScrapedAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "productCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        },
+        "required" : [ "lastScrapedAt", "productCount" ]
+      },
+      "PagedResultProductSummary" : {
+        "type" : "object",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProductSummary"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalCount" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "required" : [ "items", "page", "pageSize", "totalCount", "totalPages" ]
+      },
+      "ProductSummary" : {
+        "type" : "object",
+        "properties" : {
+          "brand" : {
+            "type" : [ "string", "null" ]
+          },
+          "carbs100g" : {
+            "type" : [ "number", "null" ]
+          },
+          "category" : {
+            "type" : [ "string", "null" ]
+          },
+          "fat100g" : {
+            "type" : [ "number", "null" ]
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "kcal100g" : {
+            "type" : [ "number", "null" ]
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "packageGrams" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "priceCents" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "pricePerKgCents" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "productKey" : {
+            "type" : "string"
+          },
+          "protein100g" : {
+            "type" : [ "number", "null" ]
+          },
+          "unit" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "brand", "carbs100g", "category", "fat100g", "id", "kcal100g", "name", "packageGrams", "priceCents", "pricePerKgCents", "productKey", "protein100g", "unit" ]
+      }
+    }
+  }
+}
