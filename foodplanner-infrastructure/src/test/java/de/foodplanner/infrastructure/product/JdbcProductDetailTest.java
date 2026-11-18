@@ -240,7 +240,8 @@ class JdbcProductDetailTest {
         }
         long first = repository.details(List.of(keys.getFirst())).getFirst().id();
         AtomicInteger statements = new AtomicInteger();
-        JdbcProductRepository counted = new JdbcProductRepository(JdbcClient.create(CountingDataSource.of(dataSource, statements)));
+        JdbcProductRepository counted =
+                new JdbcProductRepository(JdbcClient.create(CountingDataSource.of(dataSource, statements)));
 
         assertThat(counted.details(keys)).hasSize(30);
         assertThat(statements).hasValue(2);

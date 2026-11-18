@@ -20,8 +20,8 @@ public record GoalProgress(Long proteinPct, Long fatPct, Long carbsPct, Long kca
     /**
      * Rechnet den Fortschritt aus den ungerundeten Summen. Das Budget bleibt im Preispfad ganzzahlig wie
      * {@code PricePerKg}: {@code priceCents × 100 / budgetCents}, der Bruch mit 2 erweitert und um den halben Nenner
-     * verschoben. Bei {@code priceCents} bis 200 × 1000 × 100 000 Cent bleibt {@code 200 × priceCents} weit unter
-     * {@link Long#MAX_VALUE}; darüber endet die Rechnung als {@link ArithmeticException}.
+     * verschoben. {@code priceCents} beruht auf den aktuellen Preisen aus der Datenbank, die nur nach unten begrenzt
+     * sind; läuft {@code 200 × priceCents} über, endet die Rechnung als {@link ArithmeticException} statt still falsch.
      *
      * @param goals jedes gesetzte Ziel mindestens 1
      */
