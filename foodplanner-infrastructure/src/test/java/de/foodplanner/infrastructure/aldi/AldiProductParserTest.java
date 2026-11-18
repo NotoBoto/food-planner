@@ -21,6 +21,7 @@ class AldiProductParserTest {
 
     private static String fixture(String name) throws IOException {
         try (var in = AldiProductParserTest.class.getResourceAsStream("/fixtures/" + name)) {
+            assertThat(in).as("Fixture %s fehlt", name).isNotNull();
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

@@ -13,7 +13,8 @@ public final class GermanNumberParser {
 
     private static final Pattern NUMBER_WITH_UNIT =
             Pattern.compile("^(\\S+?)(?:\\s+(?:g|kg|mg|ml|l|kj|kcal))?$", Pattern.CASE_INSENSITIVE);
-
+    private static final Pattern GERMAN_NUMBER =
+            Pattern.compile("-?(\\d{1,3}(\\.\\d{3})+|\\d+)(,\\d+)?");
     private GermanNumberParser() {
     }
 
@@ -27,6 +28,9 @@ public final class GermanNumberParser {
         }
         String number = matcher.group(1);
 
+        if (!GERMAN_NUMBER.matcher(number).matches()) {
+            throw new NumberParseException("Kein deutsches Zahlenformat: '" + input + "'");
+        }
         DecimalFormat format = (DecimalFormat) NumberFormat.getInstance(Locale.GERMANY);
         format.setParseBigDecimal(true);
 

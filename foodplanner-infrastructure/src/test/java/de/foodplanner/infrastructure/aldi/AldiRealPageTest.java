@@ -6,8 +6,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import java.util.stream.Stream;
 
+import de.foodplanner.domain.ScrapedRow;
+import de.foodplanner.domain.ScrapedRowValidator;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -24,8 +27,14 @@ class AldiRealPageTest {
 
     private static final String DIR = "/fixtures/aldi/";
 
-    /** nutrition == null heißt: auf dieser Seite dürfen keine Nährwerte herauskommen. */
-    record Expected(String file, String name, long priceCents, String sku, Per100g nutrition) {
+    /** Wie in ingestion.non-food-categories; das Waschmittel liegt unter Haushaltsartikel. */
+    private static final ScrapedRowValidator VALIDATOR = new ScrapedRowValidator(Set.of("Haushaltsartikel"));
+
+    /**
+     * nutrition == null heißt: auf dieser Seite dürfen keine Nährwerte herauskommen.
+     * notFood: ob ScrapedRowValidator die Zeile als NOT_FOOD markieren muss.
+     */
+    record Expected(String file, String name, long priceCents, String sku, Per100g nutrition, boolean notFood) {
         @Override
         public String toString() {
             return file;
@@ -40,16 +49,16 @@ class AldiRealPageTest {
         return Stream.of(
                 new Expected("nusskati-nuss-nougat-creme.html",
                         "NUSSKATI Nuss-Nougat-Creme 400 g", 199L, "000000000000549987",
-                        n("553", "6.5", "34.9", "51.2")),
+                        n("553", "6.5", "34.9", "51.2"), false),
                 new Expected("milch-100ml.html",
                         "MILSANI Frische Vollmilch 3,5 % 1 l", 95L, "000000000330654001",
-                        null),
+                        null, false),
                 new Expected("ohne-naehrwerte.html",
                         "MEINE BACKWELT Butter-Laugenecke", 79L, "000000000000187148",
-                        null),
+                        null, false),
                 new Expected("non-food.html",
                         "TANDIL Colorwaschmittel 2,025 kg", 469L, "000000000000504879",
-                        null)
+                        null, true)
         );
     }
 
@@ -83,5 +92,8 @@ class AldiRealPageTest {
             assertThat(product.nutrition().fat()).isEqualByComparingTo(expected.nutrition().fat());
             assertThat(product.nutrition().carbs()).isEqualByComparingTo(expected.nutrition().carbs());
         }
+
+        ScrapedRow row = VALIDATOR.validate(product).orElseThrow();
+        assertThat(row.notFood()).as("NOT_FOOD").isEqualTo(expected.notFood());
     }
 }

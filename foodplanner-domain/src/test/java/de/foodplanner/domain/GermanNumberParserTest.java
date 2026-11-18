@@ -34,6 +34,20 @@ class GermanNumberParserTest {
         assertThatThrownBy(() -> GermanNumberParser.parse("1,2,3")).isInstanceOf(NumberParseException.class);
     }
 
+
+    @Test
+    void rejectsWrongThousandsGrouping() {
+        assertThatThrownBy(() -> GermanNumberParser.parse("12.5")).isInstanceOf(NumberParseException.class);
+        assertThatThrownBy(() -> GermanNumberParser.parse("1.2.3")).isInstanceOf(NumberParseException.class);
+        assertThatThrownBy(() -> GermanNumberParser.parse("55.3 g")).isInstanceOf(NumberParseException.class);
+        assertThatThrownBy(() -> GermanNumberParser.parse("12.34")).isInstanceOf(NumberParseException.class);
+    }
+
+    @Test
+    void parsesThousandsWithDecimals() {
+        assertThat(GermanNumberParser.parse("1.234,5")).isEqualByComparingTo("1234.5");
+    }
+
     @Test
     void acceptsAldisWrongKcalUnit() {
         // "Energie [kcal]" steht bei Aldi mit der Einheit "g"

@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.jsoup.Jsoup;
@@ -46,7 +47,7 @@ public final class AldiProductParser {
         String productName = textOrNull(product.path("name"));
         String brand = brandName(product.path("brand"));
         String name = productName;
-        if (name != null && brand != null && !name.toLowerCase().startsWith(brand.toLowerCase())) {
+        if (name != null && brand != null && !name.toLowerCase(Locale.ROOT).startsWith(brand.toLowerCase(Locale.ROOT))) {
             name = brand + " " + name; // "Name mit Marke"
         }
 
