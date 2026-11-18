@@ -5,7 +5,10 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.AssertTrue;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
+<<<<<<< HEAD
 import java.util.regex.Matcher;
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 
 @Validated
 @ConfigurationProperties(prefix = "http")
@@ -20,6 +23,7 @@ public record HttpProperties(
         if (userAgent == null) {
             return false;
         }
+<<<<<<< HEAD
         Matcher matcher = java.util.regex.Pattern.compile("[\\w.%+\\-]+@([\\w.-]+)",
                 java.util.regex.Pattern.CASE_INSENSITIVE).matcher(userAgent);
         while (matcher.find()) {
@@ -35,5 +39,12 @@ public record HttpProperties(
             }
         }
         return true;
+=======
+        String value = userAgent.toLowerCase(java.util.Locale.ROOT);
+        return !value.contains("@example.org")
+                && !value.contains("@example.com")
+                && !value.contains("@example.net")
+                && !value.contains("@localhost");
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     }
 }

@@ -3,6 +3,7 @@ package de.foodplanner.infrastructure;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+<<<<<<< HEAD
 import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -12,6 +13,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.http.Fault;
+=======
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -19,9 +29,12 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +54,11 @@ class HttpRequesterTest {
         Clock clock = Clock.fixed(Instant.parse("2026-10-21T07:27:00Z"), ZoneOffset.UTC);
         RequestGate gate = new RequestGate(clock, waits::add, Duration.ZERO);
         requester = new HttpRequester(
+<<<<<<< HEAD
                 new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.dev)"),
+=======
+                new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.invalid)"),
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
                 clock, waits::add, gate,
                 new ScrapeProperties(100, 4, 0, "http://localhost", "/sitemap.xml"));
     }
@@ -71,7 +88,11 @@ class HttpRequesterTest {
         assertThat(requester.get(URI.create(server.baseUrl() + "/retry")).statusCode()).isEqualTo(200);
         assertThat(waits).containsExactly(Duration.ofSeconds(1), Duration.ofSeconds(2));
         server.verify(3, getRequestedFor(urlEqualTo("/retry"))
+<<<<<<< HEAD
                 .withHeader("User-Agent", equalTo("FoodPlannerTest/1.0 (mailto:test@foodplanner.dev)")));
+=======
+                .withHeader("User-Agent", equalTo("FoodPlannerTest/1.0 (mailto:test@foodplanner.invalid)")));
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     }
 
     @Test
@@ -91,6 +112,7 @@ class HttpRequesterTest {
         assertThat(requester.get(URI.create(server.baseUrl() + "/missing")).statusCode()).isEqualTo(404);
         server.verify(1, getRequestedFor(urlEqualTo("/missing")));
     }
+<<<<<<< HEAD
 
     @Test
     void retriesConnectionResetAndStopsAfterThreeRetries() {
@@ -175,4 +197,6 @@ class HttpRequesterTest {
             serverExecutor.close();
         }
     }
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 }

@@ -10,11 +10,17 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Semaphore;
+<<<<<<< HEAD
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
+=======
+import org.springframework.stereotype.Component;
+
+@Component
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 public class HttpRequester {
 
     private final HttpClient client;
@@ -26,10 +32,14 @@ public class HttpRequester {
 
     public HttpRequester(HttpProperties properties, Clock clock, Sleeper sleeper,
             RequestGate gate, ScrapeProperties scrapeProperties) {
+<<<<<<< HEAD
         this.client = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
+=======
+        this.client = HttpClient.newBuilder().build();
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
         this.properties = properties;
         this.clock = clock;
         this.gate = gate;
@@ -48,7 +58,10 @@ public class HttpRequester {
                 gate.awaitPermission();
                 HttpRequest request = HttpRequest.newBuilder(uri)
                         .header("User-Agent", properties.userAgent())
+<<<<<<< HEAD
                         .timeout(Duration.ofSeconds(30))
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
                         .GET()
                         .build();
                 try {

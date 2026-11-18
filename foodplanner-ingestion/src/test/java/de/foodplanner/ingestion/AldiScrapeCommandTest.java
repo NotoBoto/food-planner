@@ -16,7 +16,11 @@ class AldiScrapeCommandTest {
     @Test
     void fetchInvokesScraperAndFullIsForwarded() {
         PriceScraper scraper = mock(PriceScraper.class);
+<<<<<<< HEAD
         when(scraper.scrape(true)).thenReturn(new PriceScraper.ScrapeReport(1, 1, 0, 0));
+=======
+        when(scraper.scrape(true)).thenReturn(new PriceScraper.ScrapeReport(1, 1, 0));
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
         AldiScrapeCommand command = new AldiScrapeCommand(scraper);
 
         int exitCode = new CommandLine(command).execute("--fetch", "--full");

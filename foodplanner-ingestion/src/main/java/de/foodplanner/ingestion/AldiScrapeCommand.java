@@ -24,11 +24,19 @@ public class AldiScrapeCommand implements Runnable {
     @Override
     public void run() {
         if (!fetch) {
+<<<<<<< HEAD
             System.out.println("Ohne --fetch wird der Snapshot-Pfad aus Ticket #11 verwendet.");
             return;
         }
         PriceScraper.ScrapeReport report = scraper.scrape(full);
         System.out.printf("Aldi: %d betrachtet, %d geladen, %d übersprungen, %d fehlgeschlagen%n",
                 report.considered(), report.fetched(), report.skipped(), report.failed());
+=======
+            return;
+        }
+        PriceScraper.ScrapeReport report = scraper.scrape(full);
+        System.out.printf("Aldi: %d betrachtet, %d geladen, %d übersprungen%n",
+                report.considered(), report.fetched(), report.skipped());
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     }
 }

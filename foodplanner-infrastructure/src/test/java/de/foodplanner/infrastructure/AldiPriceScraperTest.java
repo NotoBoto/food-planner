@@ -14,7 +14,10 @@ import de.foodplanner.application.ScrapedPage;
 import de.foodplanner.application.ScrapedPageRepository;
 import java.net.URI;
 import java.time.Clock;
+<<<<<<< HEAD
 import java.time.Duration;
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -37,8 +40,13 @@ class AldiPriceScraperTest {
         configureFor(server.port());
         pages = new HashMap<>();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+<<<<<<< HEAD
         HttpProperties http = new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.dev)");
         RequestGate gate = new RequestGate(clock, duration -> { }, Duration.ZERO);
+=======
+        HttpProperties http = new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.invalid)");
+        RequestGate gate = new RequestGate(clock, duration -> { }, java.time.Duration.ZERO);
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
         HttpRequester requester = new HttpRequester(http, clock, duration -> { }, gate,
                 new ScrapeProperties(100, 4, 0, server.baseUrl(), "/sitemap_products.xml"));
         scraper = new AldiPriceScraper(requester, new InMemoryPages(), 
@@ -62,6 +70,7 @@ class AldiPriceScraperTest {
     }
 
     @Test
+<<<<<<< HEAD
     void refusesForbiddenProductBeforeLoadingIt() {
         stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
                 .withBody("User-agent: *\nDisallow: /product/\n")));
@@ -95,6 +104,8 @@ class AldiPriceScraperTest {
     }
 
     @Test
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     void skipsUnchangedLastmodButFetchesEntriesWithoutLastmodAgain() {
         stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
                 .withBody("User-agent: *\nAllow: /\n")));
@@ -115,11 +126,16 @@ class AldiPriceScraperTest {
                 Instant.parse("2026-01-01T00:00:00Z"));
         pages.put(existing.url(), existing);
 
+<<<<<<< HEAD
         assertThat(scraper.scrape(false)).isEqualTo(new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 1, 0));
+=======
+        assertThat(scraper.scrape(false)).isEqualTo(new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 1));
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
         scraper.scrape(false);
         server.verify(2, getRequestedFor(urlEqualTo("/product/2")));
     }
 
+<<<<<<< HEAD
     @Test
     void fullFetchLoadsUnchangedPagesAgain() {
         stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
@@ -160,6 +176,8 @@ class AldiPriceScraperTest {
                 new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 0, 1));
     }
 
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     private final class InMemoryPages implements ScrapedPageRepository {
         @Override
         public Optional<ScrapedPage> findByUrl(URI url) {

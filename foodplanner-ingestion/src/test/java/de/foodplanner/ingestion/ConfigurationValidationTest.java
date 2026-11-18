@@ -3,12 +3,18 @@ package de.foodplanner.ingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.foodplanner.infrastructure.HttpProperties;
+<<<<<<< HEAD
 import de.foodplanner.infrastructure.InfrastructureConfiguration;
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 import de.foodplanner.infrastructure.ScrapeProperties;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
+<<<<<<< HEAD
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
 
 class ConfigurationValidationTest {
 
@@ -26,6 +32,7 @@ class ConfigurationValidationTest {
         assertThat(validator.validate(new HttpProperties(""))).isNotEmpty();
         assertThat(validator.validate(new HttpProperties("FoodPlanner (+mailto:foodplanner@example.org)")))
                 .isNotEmpty();
+<<<<<<< HEAD
         assertThat(validator.validate(new HttpProperties("FoodPlanner (+mailto:ops@foodplanner.dev)")))
                 .isEmpty();
     }
@@ -45,6 +52,12 @@ class ConfigurationValidationTest {
                 .run(context -> assertThat(context.getStartupFailure()).isNotNull());
     }
 
+=======
+        assertThat(validator.validate(new HttpProperties("FoodPlanner (+mailto:ops@foodplanner.invalid)")))
+                .isEmpty();
+    }
+
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     private static ScrapeProperties properties(int maxProducts) {
         return new ScrapeProperties(maxProducts, 4, 0.2, "http://localhost", "/sitemap_products.xml");
     }

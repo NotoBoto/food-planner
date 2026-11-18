@@ -58,6 +58,10 @@
         <dependency>
             <groupId>org.wiremock</groupId>
             <artifactId>wiremock-standalone</artifactId>
+<<<<<<< HEAD
+=======
+            <version>3.9.2</version>
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
             <scope>test</scope>
         </dependency>
     </dependencies>

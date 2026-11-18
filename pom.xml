@@ -19,7 +19,10 @@
         <picocli.version>4.7.7</picocli.version>
         <archunit.version>1.5.1</archunit.version>
         <crawler-commons.version>1.6</crawler-commons.version>
+<<<<<<< HEAD
         <wiremock.version>3.9.2</wiremock.version>
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
     </properties>
 
     <modules>
@@ -79,11 +82,14 @@
                 <artifactId>crawler-commons</artifactId>
                 <version>${crawler-commons.version}</version>
             </dependency>
+<<<<<<< HEAD
             <dependency>
                 <groupId>org.wiremock</groupId>
                 <artifactId>wiremock-standalone</artifactId>
                 <version>${wiremock.version}</version>
             </dependency>
+=======
+>>>>>>> 6fec8dab926e0202e2ddbdf21a29b9a0bba6fa73
         </dependencies>
     </dependencyManagement>
 
