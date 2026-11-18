@@ -130,6 +130,16 @@ class ShoppingListSummaryEndpointTest {
                 .andExpect(jsonPath("$.goalProgress.proteinPct").value((Object) null));
     }
 
+    /** Ein leeres {@code goals} ist kein {@code null}: Es gibt ein Objekt, nur jeder einzelne Prozentwert fehlt. */
+    @Test
+    void emptyGoalsGiveProgressWithoutValues() throws Exception {
+        summary(withGoals("{}"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"goalProgress":{"proteinPct":null,"fatPct":null,"carbsPct":null,"kcalPct":null,
+                                         "budgetPct":null}}""", JsonCompareMode.LENIENT));
+    }
+
     @Test
     void emptyItems() throws Exception {
         summary("{\"items\":[]}")
