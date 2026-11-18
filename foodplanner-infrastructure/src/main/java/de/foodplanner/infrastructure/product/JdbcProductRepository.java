@@ -14,6 +14,7 @@ import de.foodplanner.application.port.CatalogInfo;
 import de.foodplanner.application.port.PriceHistoryEntry;
 import de.foodplanner.application.port.ProductDetail;
 import de.foodplanner.application.port.ProductRepository;
+import de.foodplanner.application.port.ShoppingListProduct;
 import de.foodplanner.domain.product.ProductKey;
 
 /**
@@ -93,6 +94,36 @@ class JdbcProductRepository implements ProductRepository {
                 .query(ProductDetails.ROW)
                 .list();
         return withPriceHistory(rows);
+    }
+
+    /**
+     * Über {@link VisibleProducts}: Ein Produkt ohne aktuellen Preis gilt in der Listenzusammenfassung als nicht im
+     * Katalog (§5.2), wie in der Suche. Eine Abfrage für die ganze Liste; Nährwerte ungerundet (§4.4).
+     */
+    @Override
+    public List<ShoppingListProduct> shoppingListProducts(Collection<ProductKey> keys) {
+        String[] aldiSkus = keys.stream().flatMap(key -> key.aldiSku().stream()).distinct().toArray(String[]::new);
+        String[] offCodes = keys.stream().flatMap(key -> key.offCode().stream()).distinct().toArray(String[]::new);
+        if (aldiSkus.length == 0 && offCodes.length == 0) {
+            return List.of();
+        }
+        // Schlüsselabgleich wie in details(): off:<code> trifft nur Produkte ohne Artikelnummer (§4.2).
+        return jdbc.sql("SELECT p.aldi_sku, p.off_code, p.name, p.package_grams, p.unit, cp.price_cents,"
+                        + " p.protein100, p.fat100, p.carbs100, p.kcal100 FROM " + VisibleProducts.FROM
+                        + " WHERE p.aldi_sku = ANY(?) OR (p.aldi_sku IS NULL AND p.off_code = ANY(?))")
+                .param(aldiSkus)
+                .param(offCodes)
+                .query((rs, rowNum) -> new ShoppingListProduct(
+                        ProductKey.of(rs.getString("aldi_sku"), rs.getString("off_code")).value(),
+                        rs.getString("name"),
+                        rs.getInt("package_grams"),
+                        rs.getString("unit"),
+                        rs.getLong("price_cents"),
+                        rs.getBigDecimal("protein100"),
+                        rs.getBigDecimal("fat100"),
+                        rs.getBigDecimal("carbs100"),
+                        rs.getBigDecimal("kcal100")))
+                .list();
     }
 
     /** Lädt die Preise aller Zeilen in einer Abfrage, neueste zuerst, und baut daraus die Details. */
