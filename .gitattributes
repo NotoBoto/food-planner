@@ -1,3 +1,4 @@
 mvnw      text eol=lf
 *.cmd     text eol=crlf
 foodplanner-infrastructure/src/test/resources/fixtures/** -text
+web/**    text=auto eol=lf

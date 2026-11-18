@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-surface: #fafaf7;
+  --color-panel: #ffffff;
+  --color-line: #e4e2dc;
+  --color-line-strong: #8b8e86;
+  --color-ink: #1d1f1c;
+  --color-ink-muted: #5f625b;
+  --color-accent: #2f5d3a;
+  --color-accent-soft: #e6eee6;
+  --color-danger: #a3322a;
+  --color-danger-soft: #fbeeec;
+}
+
+body {
+  @apply bg-surface font-sans text-ink antialiased;
+}
