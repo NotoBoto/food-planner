@@ -14,6 +14,7 @@ import de.foodplanner.application.ScrapedPage;
 import de.foodplanner.application.ScrapedPageRepository;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -36,8 +37,8 @@ class AldiPriceScraperTest {
         configureFor(server.port());
         pages = new HashMap<>();
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        HttpProperties http = new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.invalid)");
-        RequestGate gate = new RequestGate(clock, duration -> { }, java.time.Duration.ZERO);
+        HttpProperties http = new HttpProperties("FoodPlannerTest/1.0 (mailto:test@foodplanner.dev)");
+        RequestGate gate = new RequestGate(clock, duration -> { }, Duration.ZERO);
         HttpRequester requester = new HttpRequester(http, clock, duration -> { }, gate,
                 new ScrapeProperties(100, 4, 0, server.baseUrl(), "/sitemap_products.xml"));
         scraper = new AldiPriceScraper(requester, new InMemoryPages(), 
@@ -61,6 +62,39 @@ class AldiPriceScraperTest {
     }
 
     @Test
+    void refusesForbiddenProductBeforeLoadingIt() {
+        stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
+                .withBody("User-agent: *\nDisallow: /product/\n")));
+        stubFor(get(urlEqualTo("/sitemap_products.xml")).willReturn(aResponse()
+                .withBody("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                          <url><loc>%s/product/1</loc></url>
+                        </urlset>
+                        """.formatted(server.baseUrl()))));
+
+        assertThatThrownBy(() -> scraper.scrape(false))
+                .hasMessageContaining("robots.txt verbietet");
+        server.verify(0, getRequestedFor(urlEqualTo("/product/1")));
+    }
+
+    @Test
+    void missingRobotsTxtAllowsAllPaths() {
+        stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse().withStatus(404)));
+        stubFor(get(urlEqualTo("/sitemap_products.xml")).willReturn(aResponse()
+                .withBody("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                          <url><loc>%s/product/1</loc></url>
+                        </urlset>
+                        """.formatted(server.baseUrl()))));
+        stubFor(get(urlEqualTo("/product/1")).willReturn(aResponse().withStatus(200)));
+
+        assertThat(scraper.scrape(false).fetched()).isEqualTo(1);
+        server.verify(1, getRequestedFor(urlEqualTo("/product/1")));
+    }
+
+    @Test
     void skipsUnchangedLastmodButFetchesEntriesWithoutLastmodAgain() {
         stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
                 .withBody("User-agent: *\nAllow: /\n")));
@@ -81,9 +115,49 @@ class AldiPriceScraperTest {
                 Instant.parse("2026-01-01T00:00:00Z"));
         pages.put(existing.url(), existing);
 
-        assertThat(scraper.scrape(false)).isEqualTo(new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 1));
+        assertThat(scraper.scrape(false)).isEqualTo(new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 1, 0));
         scraper.scrape(false);
         server.verify(2, getRequestedFor(urlEqualTo("/product/2")));
+    }
+
+    @Test
+    void fullFetchLoadsUnchangedPagesAgain() {
+        stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
+                .withBody("User-agent: *\nAllow: /\n")));
+        stubFor(get(urlEqualTo("/sitemap_products.xml")).willReturn(aResponse()
+                .withBody("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                          <url><loc>%s/product/1</loc><lastmod>2026-01-01T00:00:00Z</lastmod></url>
+                        </urlset>
+                        """.formatted(server.baseUrl()))));
+        stubFor(get(urlEqualTo("/product/1")).willReturn(aResponse().withStatus(200)));
+        pages.put(URI.create(server.baseUrl() + "/product/1"), new ScrapedPage(
+                URI.create(server.baseUrl() + "/product/1"),
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-01T00:00:00Z")));
+
+        assertThat(scraper.scrape(true).fetched()).isEqualTo(1);
+        server.verify(1, getRequestedFor(urlEqualTo("/product/1")));
+    }
+
+    @Test
+    void skipsMissingProductsWithoutAbortingTheRun() {
+        stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
+                .withBody("User-agent: *\nAllow: /\n")));
+        stubFor(get(urlEqualTo("/sitemap_products.xml")).willReturn(aResponse()
+                .withBody("""
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                          <url><loc>%s/product/1</loc></url>
+                          <url><loc>%s/product/2</loc></url>
+                        </urlset>
+                        """.formatted(server.baseUrl(), server.baseUrl()))));
+        stubFor(get(urlEqualTo("/product/1")).willReturn(aResponse().withStatus(404)));
+        stubFor(get(urlEqualTo("/product/2")).willReturn(aResponse().withStatus(200)));
+
+        assertThat(scraper.scrape(false)).isEqualTo(
+                new de.foodplanner.application.PriceScraper.ScrapeReport(2, 1, 0, 1));
     }
 
     private final class InMemoryPages implements ScrapedPageRepository {

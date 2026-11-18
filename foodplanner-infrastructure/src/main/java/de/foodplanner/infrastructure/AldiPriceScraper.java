@@ -16,15 +16,19 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
 public class AldiPriceScraper implements PriceScraper {
 
     private final HttpRequester requester;
@@ -56,7 +60,7 @@ public class AldiPriceScraper implements PriceScraper {
                     .limit(properties.aldiMaxProducts())
                     .toList();
             int skipped = 0;
-            List<FetchEntry> toFetch = new java.util.ArrayList<>();
+            List<FetchEntry> toFetch = new ArrayList<>();
             for (SiteMapURL entry : entries) {
                 URI productUri = URI.create(entry.getUrl().toString());
                 ensureAllowed(rules, productUri);
@@ -72,19 +76,27 @@ public class AldiPriceScraper implements PriceScraper {
                 toFetch.add(new FetchEntry(productUri, lastModified));
             }
             int fetched = 0;
+            int failed = 0;
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                List<Future<Void>> futures = toFetch.stream()
-                        .map(entry -> executor.submit((java.util.concurrent.Callable<Void>) () -> {
-                            fetchAndSave(entry);
-                            return null;
+                List<Future<Boolean>> futures = toFetch.stream()
+                        .map(entry -> executor.submit((Callable<Boolean>) () -> {
+                            return fetchAndSave(entry);
                         }))
                         .toList();
-                for (Future<Void> future : futures) {
-                    future.get();
-                    fetched++;
+                try {
+                    for (Future<Boolean> future : futures) {
+                        if (future.get()) {
+                            fetched++;
+                        } else {
+                            failed++;
+                        }
+                    }
+                } catch (ExecutionException exception) {
+                    futures.forEach(future -> future.cancel(true));
+                    throw exception;
                 }
             }
-            return new ScrapeReport(entries.size(), fetched, skipped);
+            return new ScrapeReport(entries.size(), fetched, skipped, failed);
         } catch (ExecutionException exception) {
             if (exception.getCause() instanceof IOException ioException) {
                 throw new UncheckedIOException("Aldi-Abruf fehlgeschlagen: " + ioException.getMessage(), ioException);
@@ -105,10 +117,14 @@ public class AldiPriceScraper implements PriceScraper {
         }
     }
 
-    private void fetchAndSave(FetchEntry entry) throws IOException, InterruptedException {
+    private boolean fetchAndSave(FetchEntry entry) throws IOException, InterruptedException {
         HttpResponse<String> productResponse = requester.get(entry.url());
+        if (productResponse.statusCode() == 404 || productResponse.statusCode() == 410) {
+            return false;
+        }
         requireSuccess(entry.url(), productResponse);
         pages.save(new ScrapedPage(entry.url(), entry.lastModified(), clock.instant()));
+        return true;
     }
 
     private record FetchEntry(URI url, Instant lastModified) {
@@ -116,6 +132,10 @@ public class AldiPriceScraper implements PriceScraper {
 
     private BaseRobotRules readRules(URI robotsUri) throws IOException, InterruptedException {
         HttpResponse<String> response = requester.get(robotsUri);
+        if (response.statusCode() >= 400 && response.statusCode() < 500) {
+            return new SimpleRobotRulesParser().parseContent(
+                    robotsUri.toString(), new byte[0], "text/plain", httpProperties.userAgent());
+        }
         requireSuccess(robotsUri, response);
         return new SimpleRobotRulesParser().parseContent(
                 robotsUri.toString(), response.body().getBytes(StandardCharsets.UTF_8),

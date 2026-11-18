@@ -19,6 +19,7 @@
         <picocli.version>4.7.7</picocli.version>
         <archunit.version>1.5.1</archunit.version>
         <crawler-commons.version>1.6</crawler-commons.version>
+        <wiremock.version>3.9.2</wiremock.version>
     </properties>
 
     <modules>
@@ -78,6 +79,11 @@
                 <artifactId>crawler-commons</artifactId>
                 <version>${crawler-commons.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.wiremock</groupId>
+                <artifactId>wiremock-standalone</artifactId>
+                <version>${wiremock.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -95,6 +101,19 @@
     </dependencies>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <environmentVariables>
+                            <HTTP_USER_AGENT>FoodPlannerTest/1.0 (mailto:test@foodplanner.dev)</HTTP_USER_AGENT>
+                        </environmentVariables>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

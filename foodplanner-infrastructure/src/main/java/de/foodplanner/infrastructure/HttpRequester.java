@@ -10,9 +10,11 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Semaphore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
 public class HttpRequester {
 
     private final HttpClient client;
@@ -24,7 +26,10 @@ public class HttpRequester {
 
     public HttpRequester(HttpProperties properties, Clock clock, Sleeper sleeper,
             RequestGate gate, ScrapeProperties scrapeProperties) {
-        this.client = HttpClient.newBuilder().build();
+        this.client = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
         this.properties = properties;
         this.clock = clock;
         this.gate = gate;
@@ -43,6 +48,7 @@ public class HttpRequester {
                 gate.awaitPermission();
                 HttpRequest request = HttpRequest.newBuilder(uri)
                         .header("User-Agent", properties.userAgent())
+                        .timeout(Duration.ofSeconds(30))
                         .GET()
                         .build();
                 try {
