@@ -1,4 +1,5 @@
 import { setupServer } from 'msw/node'
+import { defaultHandlers } from './handlers'
 
-// Nachgebaute API für die Tests. Jeder Test legt mit server.use(...) fest, was sie antwortet.
-export const server = setupServer()
+// Nachgebaute API für die Tests. Ohne server.use(...) antwortet sie mit den Standardantworten.
+export const server = setupServer(...defaultHandlers)
