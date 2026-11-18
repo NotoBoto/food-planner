@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
-// So sieht ein Fehler von Spring aus (ProblemDetail)
+// So sieht ein Fehler von Spring aus (ProblemDetail). Bei Validierungsfehlern (400) steht in
+// errors je Feldname, was nicht stimmt.
 const problemSchema = z.object({
   title: z.string().optional(),
   status: z.number().optional(),
   detail: z.string().optional(),
+  errors: z.record(z.string(), z.string()).optional(),
 })
 
 export type ProblemDetail = z.infer<typeof problemSchema>
