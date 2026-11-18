@@ -67,7 +67,7 @@ record ShoppingListSummaryResponse(
         static Line from(ShoppingListSummary.Line summaryLine) {
             ShoppingLine line = summaryLine.line();
             Nutrition nutrition = line.nutrition();
-            Nutrition per100g = summaryLine.per100g();
+            Nutrition per100g = line.per100g();
             return new Line(
                     summaryLine.productKey(),
                     summaryLine.name(),

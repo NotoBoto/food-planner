@@ -81,11 +81,10 @@ public class SummariseShoppingListHandler {
     }
 
     private static ShoppingListSummary.Line line(Item item, ShoppingListProduct product) {
-        Nutrition per100g = per100g(product);
         ShoppingLine line = new ShoppingLine(Objects.requireNonNull(item.quantity()), product.priceCents(),
-                Objects.requireNonNull(item.priceAtAddCents()), product.packageGrams(), per100g);
+                Objects.requireNonNull(item.priceAtAddCents()), product.packageGrams(), per100g(product));
         return new ShoppingListSummary.Line(product.productKey(), product.name(), product.unit(),
-                Objects.requireNonNull(item.addedAt()), line, per100g);
+                Objects.requireNonNull(item.addedAt()), line);
     }
 
     /** Die vier Nährwerte, oder {@code null}: Sie sind immer alle gesetzt oder alle leer (§4.4). */

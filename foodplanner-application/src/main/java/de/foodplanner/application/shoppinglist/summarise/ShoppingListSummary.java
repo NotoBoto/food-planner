@@ -6,7 +6,6 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 import de.foodplanner.domain.shoppinglist.GoalProgress;
-import de.foodplanner.domain.shoppinglist.Nutrition;
 import de.foodplanner.domain.shoppinglist.ShoppingLine;
 import de.foodplanner.domain.shoppinglist.ShoppingTotals;
 
@@ -30,15 +29,13 @@ public record ShoppingListSummary(
      * Eine Zeile mit den Angaben, die nur zur Anzeige dienen, und der Rechnung aus {@code domain}.
      *
      * @param addedAt Zeitpunkt des Hinzufügens, unverändert aus der Anfrage
-     * @param line    Menge, Preise, Packungsgröße und Nährwerte pro 100 g
-     * @param per100g Nährwerte pro 100 g bzw. 100 ml, {@code null}, wenn das Produkt keine hat
+     * @param line    Menge, Preise, Packungsgröße und Nährwerte pro 100 g bzw. 100 ml ({@code null} ohne Nährwerte)
      */
     public record Line(
             String productKey,
             String name,
             String unit,
             Instant addedAt,
-            ShoppingLine line,
-            @Nullable Nutrition per100g) {
+            ShoppingLine line) {
     }
 }

@@ -100,9 +100,8 @@ class SummariseShoppingListHandlerTest {
         assertThat(line.line().unitPriceCents()).isEqualTo(139);
         assertThat(line.line().priceAtAddCents()).isEqualTo(129);
         assertThat(line.line().packageGrams()).isEqualTo(1000);
-        assertThat(line.per100g()).isEqualTo(line.line().per100g());
-        assertThat(line.per100g().protein()).isEqualByComparingTo("1");
-        assertThat(line.per100g().kcal()).isEqualByComparingTo("4");
+        assertThat(line.line().per100g().protein()).isEqualByComparingTo("1");
+        assertThat(line.line().per100g().kcal()).isEqualByComparingTo("4");
     }
 
     @Test
@@ -125,7 +124,7 @@ class SummariseShoppingListHandlerTest {
 
         ShoppingListSummary summary = new SummariseShoppingListHandler(repository).handle(query(item("aldi:1", 1, 1)));
 
-        assertThat(summary.lines().getFirst().per100g()).isNull();
+        assertThat(summary.lines().getFirst().line().per100g()).isNull();
         assertThat(summary.lines().getFirst().line().nutrition()).isNull();
     }
 
