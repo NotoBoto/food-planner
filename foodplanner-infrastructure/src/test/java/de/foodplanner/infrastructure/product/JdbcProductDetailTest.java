@@ -2,10 +2,7 @@ package de.foodplanner.infrastructure.product;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
-import java.sql.Connection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,8 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.foodplanner.application.port.PriceHistoryEntry;
@@ -245,7 +240,7 @@ class JdbcProductDetailTest {
         }
         long first = repository.details(List.of(keys.getFirst())).getFirst().id();
         AtomicInteger statements = new AtomicInteger();
-        JdbcProductRepository counted = new JdbcProductRepository(JdbcClient.create(counting(statements)));
+        JdbcProductRepository counted = new JdbcProductRepository(JdbcClient.create(CountingDataSource.of(dataSource, statements)));
 
         assertThat(counted.details(keys)).hasSize(30);
         assertThat(statements).hasValue(2);
@@ -257,35 +252,6 @@ class JdbcProductDetailTest {
         statements.set(0);
         assertThat(counted.details(Collections.emptyList())).isEmpty();
         assertThat(statements).hasValue(0);
-    }
-
-    /**
-     * Zählt vorbereitete Anweisungen. Die Verbindung kommt aus der laufenden Testtransaktion, damit die Testdaten
-     * sichtbar sind; {@code close()} gibt sie nur an Spring zurück.
-     */
-    private DataSource counting(AtomicInteger statements) {
-        return new DelegatingDataSource(dataSource) {
-            @Override
-            public Connection getConnection() {
-                Connection target = DataSourceUtils.getConnection(dataSource);
-                return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
-                        new Class<?>[] {Connection.class}, (proxy, method, args) -> {
-                            if (method.getName().equals("close")) {
-                                DataSourceUtils.releaseConnection(target, dataSource);
-                                return null;
-                            }
-                            if (method.getName().equals("prepareStatement")
-                                    || method.getName().equals("createStatement")) {
-                                statements.incrementAndGet();
-                            }
-                            try {
-                                return method.invoke(target, args);
-                            } catch (InvocationTargetException e) {
-                                throw e.getCause();
-                            }
-                        });
-            }
-        };
     }
 
     private static ProductKey key(String raw) {
