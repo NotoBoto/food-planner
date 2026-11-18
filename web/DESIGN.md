@@ -15,8 +15,9 @@ Adresse auf und braucht weder eine API-URL zur Bauzeit noch CORS.
 Die Typen der API kommen aus `web/openapi.json`, die das API-Modul mit springdoc erzeugt.
 `npm run api:types` macht daraus `src/api/schema.d.ts`, das läuft auch nach `npm install` und vor
 jedem Build. Ändert sich ein Endpunkt oder DTO, schlägt der Test `OpenApiSpecTest` fehl. Dann die
-Datei neu schreiben und mit committen:
-`./mvnw -pl foodplanner-api test -Dtest=OpenApiSpecTest -Dopenapi.write=true`.
+Datei neu schreiben und mit committen, in IntelliJ über die Run Configuration „OpenAPI-Spezifikation
+neu schreiben“ oder auf der Kommandozeile mit
+`./mvnw -pl foodplanner-api -am test -Dtest=OpenApiSpecTest -Dsurefire.failIfNoSpecifiedTests=false -Dopenapi.write=true`.
 
 ## Abweichungen von der Spezifikation
 

@@ -20,8 +20,8 @@ import de.foodplanner.infrastructure.PostgresTestConfiguration;
 /**
  * springdoc liefert die Spezifikation und Swagger UI, und {@code web/openapi.json} entspricht ihr (§7).
  *
- * <p>Neu schreiben nach einer Änderung an Endpunkten oder DTOs:
- * {@code ./mvnw -pl foodplanner-api test -Dtest=OpenApiSpecTest -Dopenapi.write=true}
+ * <p>Neu schreiben nach einer Änderung an Endpunkten oder DTOs: in IntelliJ die Run Configuration
+ * „OpenAPI-Spezifikation neu schreiben“ oder {@value #REWRITE_COMMAND}
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -30,6 +30,10 @@ class OpenApiSpecTest {
 
     /** Surefire startet die Tests im Modulordner, web/ liegt daneben. */
     private static final Path SPEC_FILE = Path.of("..", "web", "openapi.json");
+
+    /** Läuft auch in einem frischen Klon, weil -am die benötigten Module mitbaut. */
+    static final String REWRITE_COMMAND = "./mvnw -pl foodplanner-api -am test -Dtest=OpenApiSpecTest "
+            + "-Dsurefire.failIfNoSpecifiedTests=false -Dopenapi.write=true";
 
     @Autowired
     MockMvc mockMvc;
@@ -49,8 +53,8 @@ class OpenApiSpecTest {
 
         assertThat(SPEC_FILE).as("web/openapi.json fehlt").exists();
         assertThat(normalize(Files.readString(SPEC_FILE, StandardCharsets.UTF_8)))
-                .as("web/openapi.json ist veraltet. Neu schreiben mit "
-                        + "./mvnw -pl foodplanner-api test -Dtest=OpenApiSpecTest -Dopenapi.write=true")
+                .as("web/openapi.json ist veraltet. Neu schreiben mit der IntelliJ-Run-Configuration "
+                        + "\"OpenAPI-Spezifikation neu schreiben\" oder " + REWRITE_COMMAND)
                 .isEqualTo(actual);
     }
 
