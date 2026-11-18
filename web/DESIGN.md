@@ -12,14 +12,17 @@ statische Dateien, die im Docker-Setup ein einfacher Webserver ausliefert. Diese
 die API durch, genau wie Vite beim Entwickeln. Das Frontend ruft die API also immer über dieselbe
 Adresse auf und braucht weder eine API-URL zur Bauzeit noch CORS.
 
+Die Typen der API kommen aus `web/openapi.json`, die das API-Modul mit springdoc erzeugt.
+`npm run api:types` macht daraus `src/api/schema.d.ts`, das läuft auch nach `npm install` und vor
+jedem Build. Ändert sich ein Endpunkt oder DTO, schlägt der Test `OpenApiSpecTest` fehl. Dann die
+Datei neu schreiben und mit committen:
+`./mvnw -pl foodplanner-api test -Dtest=OpenApiSpecTest -Dopenapi.write=true`.
+
 ## Abweichungen von der Spezifikation
 
 Vorschläge, die das Team noch abnicken muss. Bis dahin gilt die Spezifikation
 (`docs/2026-10-12-foodplanner-design.md`).
 
-- API-Typen zunächst von Hand. Solange es die Endpunkte nicht gibt, lässt sich nichts generieren.
-  Sobald die API ihre `openapi.json` exportiert, werden die Typen wie vorgesehen mit
-  `openapi-typescript` erzeugt.
 - Weniger Frontend-Tests als in der Spezifikation: Vitest für Listenlogik, Formatierung und
   Export/Import, dazu ein paar Komponententests. MSW nur dort, wo es ohne nicht geht.
 

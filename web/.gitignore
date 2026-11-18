@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Wird aus openapi.json erzeugt (npm run api:types)
+src/api/schema.d.ts
