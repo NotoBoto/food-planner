@@ -226,18 +226,18 @@ class ShoppingListSummaryEndpointTest {
         summary(withGoals("{\"budgetCents\":2147483647}")).andExpect(status().isOk());
     }
 
-    /**
-     * Hält das heutige Verhalten fest: Jackson liest {@code 1.5} für eine ganze Zahl als {@code 1}
-     * ({@code ACCEPT_FLOAT_AS_INT}), die Anfrage geht durch. Die Abhilfe ist globale Jackson-Konfiguration und gehört
-     * zu #25; dann wird hieraus ein 400.
-     */
+    /** Ganze Packungen (§4.4): Eine Bruchzahl wird abgelehnt, nicht still abgeschnitten. */
     @Test
-    void fractionalQuantityIsTruncatedUntil25() throws Exception {
-        catalog.product("Roggenbrot").sku("1002").insert();
+    void fractionalNumbersAre400() throws Exception {
+        summary(item("\"aldi:1\"", "1.5", "129", "\"" + ADDED + "\"")).andExpect(status().isBadRequest());
+        summary(item("\"aldi:1\"", "1", "129.9", "\"" + ADDED + "\"")).andExpect(status().isBadRequest());
+        summary(withGoals("{\"budgetCents\":4000.7}")).andExpect(status().isBadRequest());
+    }
 
-        summary(item("\"aldi:1002\"", "1.5", "129", "\"" + ADDED + "\""))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.lines[0].quantity").value(1));
+    /** Wie bei den Zielen: Ein Wert jenseits von {@code int} ist eine Verletzung, kein Lesefehler. */
+    @Test
+    void quantityBeyondIntIs400WithError() throws Exception {
+        badRequest(item("\"aldi:1\"", "2147483648", "129", "\"" + ADDED + "\""), "quantity");
     }
 
     private ResultActions summary(String body) throws Exception {

@@ -15,7 +15,8 @@ import jakarta.validation.constraints.Size;
 /**
  * Eingabe der Listenzusammenfassung (§5.2): die Liste aus dem Browser und optionale Ziele. Die Grenzen gelten hier,
  * nie im Controller (§3.2), und entsprechen {@code web/src/limits.ts} (§7.2). Zahlen sind Wrapper-Typen, damit ein
- * fehlendes Feld als {@code null} an {@code @NotNull} scheitert, statt still {@code 0} zu werden.
+ * fehlendes Feld als {@code null} an {@code @NotNull} scheitert, statt still {@code 0} zu werden, und durchweg
+ * {@code Long}: Ein Wert jenseits von {@code int} wird so als Verletzung gemeldet, nicht als Lesefehler des JSON.
  *
  * @param items Zeilen der Liste, höchstens {@value #MAX_ITEMS}, jede vollständig; kein {@code null}-Eintrag und jeder
  *              {@code productKey} höchstens einmal (§7.2, {@link ItemsWellFormed})
@@ -40,7 +41,7 @@ public record SummariseShoppingListQuery(
      *                        das es nicht mehr gibt
      * @param quantity        ganze Packungen, 1…1000 (§4.4)
      * @param priceAtAddCents Preis beim Hinzufügen in Cent, 1…100 000
-     * @param addedAt         Zeitpunkt des Hinzufügens; wird unverändert zurückgegeben
+     * @param addedAt         Zeitpunkt des Hinzufügens; derselbe Zeitpunkt kommt zurück, ausgegeben in UTC
      */
     public record Item(
             @NotNull(message = "darf nicht leer sein")
@@ -49,7 +50,7 @@ public record SummariseShoppingListQuery(
             @NotNull(message = "darf nicht leer sein")
             @Min(value = 1, message = "muss zwischen 1 und 1000 liegen")
             @Max(value = 1000, message = "muss zwischen 1 und 1000 liegen")
-            @Nullable Integer quantity,
+            @Nullable Long quantity,
             @NotNull(message = "darf nicht leer sein")
             @Min(value = 1, message = "muss zwischen 1 und 100000 liegen")
             @Max(value = 100_000, message = "muss zwischen 1 und 100000 liegen")

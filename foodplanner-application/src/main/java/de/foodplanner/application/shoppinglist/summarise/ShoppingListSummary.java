@@ -28,7 +28,7 @@ public record ShoppingListSummary(
     /**
      * Eine Zeile mit den Angaben, die nur zur Anzeige dienen, und der Rechnung aus {@code domain}.
      *
-     * @param addedAt Zeitpunkt des Hinzufügens, unverändert aus der Anfrage
+     * @param addedAt Zeitpunkt des Hinzufügens aus der Anfrage; die Antwort gibt ihn in UTC aus
      * @param line    Menge, Preise, Packungsgröße und Nährwerte pro 100 g bzw. 100 ml ({@code null} ohne Nährwerte)
      */
     public record Line(

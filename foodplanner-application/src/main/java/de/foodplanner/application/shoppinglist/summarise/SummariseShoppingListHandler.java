@@ -81,7 +81,7 @@ public class SummariseShoppingListHandler {
     }
 
     private static ShoppingListSummary.Line line(Item item, ShoppingListProduct product) {
-        ShoppingLine line = new ShoppingLine(Objects.requireNonNull(item.quantity()), product.priceCents(),
+        ShoppingLine line = new ShoppingLine(Math.toIntExact(Objects.requireNonNull(item.quantity())), product.priceCents(),
                 Objects.requireNonNull(item.priceAtAddCents()), product.packageGrams(), per100g(product));
         return new ShoppingListSummary.Line(product.productKey(), product.name(), product.unit(),
                 Objects.requireNonNull(item.addedAt()), line);

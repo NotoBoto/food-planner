@@ -26,7 +26,7 @@ record ShoppingListSummaryRequest(@Nullable List<@Nullable Item> items, @Nullabl
     /** Eine Zeile: {@code { productKey, quantity, priceAtAddCents, addedAt }} (§5.2). */
     record Item(
             @Nullable String productKey,
-            @Nullable Integer quantity,
+            @Nullable Long quantity,
             @Nullable Long priceAtAddCents,
             @Nullable Instant addedAt) {
 

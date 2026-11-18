@@ -20,7 +20,7 @@ class SummariseShoppingListHandlerTest {
 
     private static final Instant ADDED = Instant.parse("2026-11-20T10:00:00Z");
 
-    private static Item item(String key, int quantity, long priceAtAddCents) {
+    private static Item item(String key, long quantity, long priceAtAddCents) {
         return new Item(key, quantity, priceAtAddCents, ADDED);
     }
 

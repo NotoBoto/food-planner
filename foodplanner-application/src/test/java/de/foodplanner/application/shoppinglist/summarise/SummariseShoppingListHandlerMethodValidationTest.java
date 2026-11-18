@@ -43,7 +43,7 @@ class SummariseShoppingListHandlerMethodValidationTest {
 
     private static List<Item> items(int count) {
         return IntStream.rangeClosed(1, count)
-                .mapToObj(i -> new Item("aldi:" + i, 1, 100L, Instant.parse("2026-11-20T10:00:00Z")))
+                .mapToObj(i -> new Item("aldi:" + i, 1L, 100L, Instant.parse("2026-11-20T10:00:00Z")))
                 .toList();
     }
 

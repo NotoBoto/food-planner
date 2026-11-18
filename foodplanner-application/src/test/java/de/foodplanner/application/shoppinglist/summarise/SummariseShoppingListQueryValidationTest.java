@@ -24,7 +24,7 @@ class SummariseShoppingListQueryValidationTest {
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     private static Item item(String key) {
-        return new Item(key, 2, 129L, ADDED);
+        return new Item(key, 2L, 129L, ADDED);
     }
 
     private static List<Item> items(int count) {
@@ -77,29 +77,29 @@ class SummariseShoppingListQueryValidationTest {
 
     @Test
     void quantityBounds() {
-        assertThat(validate(new Item("aldi:1", 1, 129L, ADDED))).isEmpty();
-        assertThat(validate(new Item("aldi:1", 1000, 129L, ADDED))).isEmpty();
-        assertViolation(validate(new Item("aldi:1", 0, 129L, ADDED)), "quantity", "muss zwischen 1 und 1000 liegen");
-        assertViolation(validate(new Item("aldi:1", 1001, 129L, ADDED)), "quantity",
+        assertThat(validate(new Item("aldi:1", 1L, 129L, ADDED))).isEmpty();
+        assertThat(validate(new Item("aldi:1", 1000L, 129L, ADDED))).isEmpty();
+        assertViolation(validate(new Item("aldi:1", 0L, 129L, ADDED)), "quantity", "muss zwischen 1 und 1000 liegen");
+        assertViolation(validate(new Item("aldi:1", 1001L, 129L, ADDED)), "quantity",
                 "muss zwischen 1 und 1000 liegen");
     }
 
     @Test
     void priceAtAddBounds() {
-        assertThat(validate(new Item("aldi:1", 1, 1L, ADDED))).isEmpty();
-        assertThat(validate(new Item("aldi:1", 1, 100_000L, ADDED))).isEmpty();
-        assertViolation(validate(new Item("aldi:1", 1, 0L, ADDED)), "priceAtAddCents",
+        assertThat(validate(new Item("aldi:1", 1L, 1L, ADDED))).isEmpty();
+        assertThat(validate(new Item("aldi:1", 1L, 100_000L, ADDED))).isEmpty();
+        assertViolation(validate(new Item("aldi:1", 1L, 0L, ADDED)), "priceAtAddCents",
                 "muss zwischen 1 und 100000 liegen");
-        assertViolation(validate(new Item("aldi:1", 1, 100_001L, ADDED)), "priceAtAddCents",
+        assertViolation(validate(new Item("aldi:1", 1L, 100_001L, ADDED)), "priceAtAddCents",
                 "muss zwischen 1 und 100000 liegen");
     }
 
     @Test
     void everyItemFieldRequired() {
-        assertViolation(validate(new Item(null, 1, 129L, ADDED)), "productKey", "darf nicht leer sein");
+        assertViolation(validate(new Item(null, 1L, 129L, ADDED)), "productKey", "darf nicht leer sein");
         assertViolation(validate(new Item("aldi:1", null, 129L, ADDED)), "quantity", "darf nicht leer sein");
-        assertViolation(validate(new Item("aldi:1", 1, null, ADDED)), "priceAtAddCents", "darf nicht leer sein");
-        assertViolation(validate(new Item("aldi:1", 1, 129L, null)), "addedAt", "darf nicht leer sein");
+        assertViolation(validate(new Item("aldi:1", 1L, null, ADDED)), "priceAtAddCents", "darf nicht leer sein");
+        assertViolation(validate(new Item("aldi:1", 1L, 129L, null)), "addedAt", "darf nicht leer sein");
     }
 
     @Test
@@ -123,7 +123,7 @@ class SummariseShoppingListQueryValidationTest {
     @Test
     void duplicateKeysRejected() {
         List<Item> items = new ArrayList<>(items(3));
-        items.add(new Item("aldi:2", 5, 99L, ADDED));
+        items.add(new Item("aldi:2", 5L, 99L, ADDED));
 
         assertViolation(validate(items, null), "items", "jeder productKey darf nur einmal vorkommen");
     }
