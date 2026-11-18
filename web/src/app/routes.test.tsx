@@ -1,13 +1,6 @@
-import { render, screen } from '@testing-library/react'
-import { createMemoryRouter, RouterProvider } from 'react-router'
+import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { routes } from './routes'
-
-// Zeigt die App so, als hätte man die Adresse im Browser eingegeben.
-function renderPage(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
-  render(<RouterProvider router={router} />)
-}
+import { renderRoute } from '../test/render'
 
 describe('Routing', () => {
   it.each([
@@ -16,14 +9,14 @@ describe('Routing', () => {
     ['/list', 'Einkaufsliste'],
     ['/admin', 'Review'],
   ])('zeigt unter %s die Überschrift „%s“', async (path, heading) => {
-    renderPage(path)
+    renderRoute(path)
     expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument()
   })
 
   it.each(['/gibt-es-nicht', '/product/abc', '/product/0'])(
     'zeigt „Seite nicht gefunden“ für %s',
     async (path) => {
-      renderPage(path)
+      renderRoute(path)
       expect(
         await screen.findByRole('heading', { name: 'Seite nicht gefunden' }),
       ).toBeInTheDocument()
