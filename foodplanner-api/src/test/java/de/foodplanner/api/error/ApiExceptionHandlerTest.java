@@ -8,12 +8,13 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.http.ProblemDetail;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -65,6 +66,7 @@ class ApiExceptionHandlerTest {
 
         assertThatThrownBy(() -> handler.constraintViolation(exception)).isSameAs(exception);
     }
+
     @Test
     void resourceNotFoundIs404() {
         ProblemDetail problem = handler.resourceNotFound(
@@ -88,15 +90,14 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
-    void methodArgumentNotValidCollectsFieldAndGlobalErrors() throws Exception {
+    void methodArgumentNotValidCollectsFieldAndGlobalErrors() {
         BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "recipeRequest");
         bindingResult.addError(new FieldError("recipeRequest", "title", "darf nicht leer sein"));
         bindingResult.addError(new FieldError("recipeRequest", "title", "muss mindestens 3 Zeichen haben"));
         bindingResult.addError(new ObjectError("recipeRequest", "Startdatum muss vor Enddatum liegen"));
 
-        MethodParameter parameter = new MethodParameter(
-                ApiExceptionHandlerTest.class.getDeclaredMethod("dummyMethod", String.class), 0);
-        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(parameter, bindingResult);
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(
+                mock(MethodParameter.class), bindingResult);
 
         ProblemDetail problem = handler.methodArgumentNotValid(exception);
 
@@ -109,7 +110,8 @@ class ApiExceptionHandlerTest {
     @Test
     void typeMismatchIs400KeyedByParameterName() {
         MethodArgumentTypeMismatchException exception = new MethodArgumentTypeMismatchException(
-                "abc", Long.class, "recipeId", null, new IllegalArgumentException("For input string: \"abc\""));
+                "abc", Long.class, "recipeId", mock(MethodParameter.class),
+                new IllegalArgumentException("For input string: \"abc\""));
 
         ProblemDetail problem = handler.typeMismatch(exception);
 
@@ -120,7 +122,7 @@ class ApiExceptionHandlerTest {
     @Test
     void notReadableBodyIs400WithoutErrorsProperty() {
         HttpMessageNotReadableException exception = new HttpMessageNotReadableException(
-                "JSON parse error", (HttpInputMessage) null);
+                "JSON parse error", mock(HttpInputMessage.class));
 
         ProblemDetail problem = handler.notReadable(exception);
 
@@ -130,14 +132,9 @@ class ApiExceptionHandlerTest {
         assertThat(problem.getProperties()).isNullOrEmpty();
     }
 
-    @SuppressWarnings("unused")
-    private void dummyMethod(String param) {
-    }
-
-
     @SuppressWarnings("unchecked")
     private static Map<String, String> errors(ProblemDetail problem) {
-        return (Map<String, String>) problem.getProperties().get("errors");
+        return (Map<String, String>) Objects.requireNonNull(problem.getProperties()).get("errors");
     }
 
     private static ConstraintViolationException exception(ConstraintViolation<?> violation) {
