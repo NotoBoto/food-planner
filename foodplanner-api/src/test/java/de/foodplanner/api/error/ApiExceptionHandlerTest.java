@@ -12,6 +12,14 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ProblemDetail;
+import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpInputMessage;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -57,6 +65,75 @@ class ApiExceptionHandlerTest {
 
         assertThatThrownBy(() -> handler.constraintViolation(exception)).isSameAs(exception);
     }
+    @Test
+    void resourceNotFoundIs404() {
+        ProblemDetail problem = handler.resourceNotFound(
+                new ResourceNotFoundException("Rezept 42 existiert nicht."));
+
+        assertThat(problem.getStatus()).isEqualTo(404);
+        assertThat(problem.getTitle()).isEqualTo("Ressource nicht gefunden");
+        assertThat(problem.getDetail()).isEqualTo("Rezept 42 existiert nicht.");
+        assertThat(problem.getProperties()).isNullOrEmpty();
+    }
+
+    @Test
+    void resourceConflictIs409() {
+        ProblemDetail problem = handler.resourceConflict(
+                new ResourceConflictException("Rezept existiert bereits."));
+
+        assertThat(problem.getStatus()).isEqualTo(409);
+        assertThat(problem.getTitle()).isEqualTo("Konflikt mit bestehender Ressource");
+        assertThat(problem.getDetail()).isEqualTo("Rezept existiert bereits.");
+        assertThat(problem.getProperties()).isNullOrEmpty();
+    }
+
+    @Test
+    void methodArgumentNotValidCollectsFieldAndGlobalErrors() throws Exception {
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "recipeRequest");
+        bindingResult.addError(new FieldError("recipeRequest", "title", "darf nicht leer sein"));
+        bindingResult.addError(new FieldError("recipeRequest", "title", "muss mindestens 3 Zeichen haben"));
+        bindingResult.addError(new ObjectError("recipeRequest", "Startdatum muss vor Enddatum liegen"));
+
+        MethodParameter parameter = new MethodParameter(
+                ApiExceptionHandlerTest.class.getDeclaredMethod("dummyMethod", String.class), 0);
+        MethodArgumentNotValidException exception = new MethodArgumentNotValidException(parameter, bindingResult);
+
+        ProblemDetail problem = handler.methodArgumentNotValid(exception);
+
+        assertThat(problem.getStatus()).isEqualTo(400);
+        assertThat(errors(problem)).containsExactly(
+                Map.entry("recipeRequest", "Startdatum muss vor Enddatum liegen"),
+                Map.entry("title", "darf nicht leer sein; muss mindestens 3 Zeichen haben"));
+    }
+
+    @Test
+    void typeMismatchIs400KeyedByParameterName() {
+        MethodArgumentTypeMismatchException exception = new MethodArgumentTypeMismatchException(
+                "abc", Long.class, "recipeId", null, new IllegalArgumentException("For input string: \"abc\""));
+
+        ProblemDetail problem = handler.typeMismatch(exception);
+
+        assertThat(problem.getStatus()).isEqualTo(400);
+        assertThat(errors(problem)).containsExactly(Map.entry("recipeId", "Ungültiger Wert."));
+    }
+
+    @Test
+    void notReadableBodyIs400WithoutErrorsProperty() {
+        HttpMessageNotReadableException exception = new HttpMessageNotReadableException(
+                "JSON parse error", (HttpInputMessage) null);
+
+        ProblemDetail problem = handler.notReadable(exception);
+
+        assertThat(problem.getStatus()).isEqualTo(400);
+        assertThat(problem.getTitle()).isEqualTo("Ungültige Anfrage");
+        assertThat(problem.getDetail()).isEqualTo("Der Anfragekörper ist ungültig oder fehlt.");
+        assertThat(problem.getProperties()).isNullOrEmpty();
+    }
+
+    @SuppressWarnings("unused")
+    private void dummyMethod(String param) {
+    }
+
 
     @SuppressWarnings("unchecked")
     private static Map<String, String> errors(ProblemDetail problem) {
