@@ -1,14 +1,8 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { apiGet } from '../api/client'
-import {
-  hasFilters,
-  RELEVANCE_LIMIT,
-  readSearchQuery,
-  SORT_LABELS,
-  toQueryString,
-} from '../api/search'
+import { hasFilters, readSearchQuery, SORT_LABELS, TEXT_HIT_LIMIT } from '../api/search'
 import type { CatalogInfo, PagedProductSummaries, SearchSort } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Pagination } from '../components/Pagination'
@@ -17,6 +11,8 @@ import {
   centsToEuroInput,
   formatCount,
   formatDate,
+  isValidDecimalInput,
+  isValidEuroInput,
   parseDecimal,
   parseEuroToCents,
 } from '../format'
@@ -69,56 +65,42 @@ export function SearchPage() {
     window.scrollTo({ top: 0 })
   }
 
-  const [text, setText] = useUrlField(
+  const text = useUrlField(
     params,
     'q',
     (t) => t.trim(),
     (u) => u,
     update,
   )
-  const [minPrice, setMinPrice] = useUrlField(
-    params,
-    'minPriceCents',
-    euroToUrl,
-    centsToText,
-    update,
-  )
-  const [maxPrice, setMaxPrice] = useUrlField(
-    params,
-    'maxPriceCents',
-    euroToUrl,
-    centsToText,
-    update,
-  )
-  const [minProtein, setMinProtein] = useUrlField(
-    params,
-    'minProtein100g',
-    decimalToUrl,
-    (u) => u.replace('.', ','),
-    update,
-  )
+  const minPrice = useUrlField(params, 'minPriceCents', euroToUrl, centsToText, update)
+  const maxPrice = useUrlField(params, 'maxPriceCents', euroToUrl, centsToText, update)
+  const minProtein = useUrlField(params, 'minProtein100g', decimalToUrl, decimalToText, update)
 
   const catalog = useQuery({
     queryKey: ['catalog-info'],
-    queryFn: () => apiGet<CatalogInfo>('/catalog/info'),
+    queryFn: () => apiGet('/api/v1/catalog/info'),
   })
   const categories = useQuery({
     queryKey: ['categories'],
-    queryFn: () => apiGet<string[]>('/categories'),
-  })
-  const search = useQuery({
-    queryKey: ['search', query],
-    queryFn: () => apiGet<PagedProductSummaries>(`/products/search?${toQueryString(query)}`),
-    // Während eine neue Suche lädt, bleiben die alten Treffer stehen (web/DESIGN.md, Zustände).
-    placeholderData: keepPreviousData,
+    queryFn: () => apiGet('/api/v1/categories'),
   })
 
   const catalogEmpty = catalog.data?.lastScrapedAt === null
 
+  const search = useQuery({
+    queryKey: ['search', query],
+    queryFn: () => apiGet('/api/v1/products/search', query),
+    // Erst suchen, wenn feststeht, ob der Katalog leer ist. Bei leerem Katalog gibt es nichts zu
+    // suchen, sonst stünde dort zusätzlich „Keine Treffer“. Schlägt catalog/info fehl, wird trotzdem gesucht.
+    enabled: catalog.isFetched && !catalogEmpty,
+    // Während eine neue Suche lädt, bleiben die alten Treffer stehen (web/DESIGN.md, Zustände).
+    placeholderData: keepPreviousData,
+  })
+
   function resetFilters() {
-    setMinPrice('')
-    setMaxPrice('')
-    setMinProtein('')
+    minPrice.reset()
+    maxPrice.reset()
+    minProtein.reset()
     update({
       category: undefined,
       minPriceCents: undefined,
@@ -136,8 +118,8 @@ export function SearchPage() {
           Produkt, Marke oder EAN
           <input
             type="search"
-            value={text}
-            onChange={(event) => setText(event.target.value)}
+            value={text.value}
+            onChange={(event) => text.edit(event.target.value)}
             disabled={catalogEmpty}
             className={fieldClass}
           />
@@ -161,7 +143,7 @@ export function SearchPage() {
         </label>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:flex sm:items-end">
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:flex sm:items-start">
         <label className="col-span-2 flex flex-col gap-1 text-sm sm:col-span-1">
           Kategorie
           <select
@@ -177,51 +159,42 @@ export function SearchPage() {
               </option>
             ))}
           </select>
+          {categories.error && (
+            <span className="text-danger">Kategorien konnten nicht geladen werden.</span>
+          )}
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Preis von (€)
-          <input
-            inputMode="decimal"
-            value={minPrice}
-            onChange={(event) => setMinPrice(event.target.value)}
-            disabled={catalogEmpty}
-            className={`${fieldClass} sm:w-28`}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Preis bis (€)
-          <input
-            inputMode="decimal"
-            value={maxPrice}
-            onChange={(event) => setMaxPrice(event.target.value)}
-            disabled={catalogEmpty}
-            className={`${fieldClass} sm:w-28`}
-          />
-        </label>
-        <label className="col-span-2 flex flex-col gap-1 text-sm sm:col-span-1">
-          Eiweiß ab (g pro 100 g)
-          <input
-            inputMode="decimal"
-            value={minProtein}
-            onChange={(event) => setMinProtein(event.target.value)}
-            disabled={catalogEmpty}
-            className={`${fieldClass} sm:w-28`}
-          />
-        </label>
+        <NumberField
+          label="Preis von (€)"
+          field={minPrice}
+          hint="Bitte eine Zahl wie 1,50 eingeben."
+          disabled={catalogEmpty}
+        />
+        <NumberField
+          label="Preis bis (€)"
+          field={maxPrice}
+          hint="Bitte eine Zahl wie 1,50 eingeben."
+          disabled={catalogEmpty}
+        />
+        <NumberField
+          label="Eiweiß ab (g pro 100 g)"
+          field={minProtein}
+          hint="Bitte eine Zahl wie 10 oder 2,5 eingeben."
+          disabled={catalogEmpty}
+          wide
+        />
       </div>
 
-      <CatalogLine info={catalog.data} />
+      <CatalogLine info={catalog.data} failed={Boolean(catalog.error)} />
 
       <section className="mt-8" aria-live="polite">
         {search.error && <ErrorMessage error={search.error} fieldLabels={FIELD_LABELS} />}
 
-        {!search.data && search.isPending && <p className="text-ink-muted">Lädt …</p>}
+        {!search.data && search.isLoading && <p className="text-ink-muted">Lädt …</p>}
 
         {search.data && (
           <Results
             data={search.data}
             searchText={query.q}
-            isRelevance={query.sort === 'relevance' && Boolean(query.q)}
             filtersSet={hasFilters(query)}
             onResetFilters={resetFilters}
             onPage={goToPage}
@@ -235,20 +208,12 @@ export function SearchPage() {
 type ResultsProps = {
   data: PagedProductSummaries
   searchText: string | undefined
-  isRelevance: boolean
   filtersSet: boolean
   onResetFilters: () => void
   onPage: (page: number) => void
 }
 
-function Results({
-  data,
-  searchText,
-  isRelevance,
-  filtersSet,
-  onResetFilters,
-  onPage,
-}: ResultsProps) {
+function Results({ data, searchText, filtersSet, onResetFilters, onPage }: ResultsProps) {
   if (data.totalCount === 0) {
     return (
       <div className="text-ink-muted">
@@ -276,9 +241,10 @@ function Results({
   return (
     <>
       <p className="text-sm text-ink-muted tabular-nums">{formatCount(data.totalCount)} Treffer</p>
-      {isRelevance && data.totalCount >= RELEVANCE_LIMIT && (
+      {/* Eine Textsuche ist bei jeder Sortierung auf 200 Treffer begrenzt (Spezifikation 5.5). */}
+      {searchText && data.totalCount >= TEXT_HIT_LIMIT && (
         <p className="mt-1 text-sm text-ink-muted">
-          Mindestens {RELEVANCE_LIMIT} Treffer, grenze die Suche ein.
+          Mindestens {TEXT_HIT_LIMIT} Treffer, grenze die Suche ein.
         </p>
       )}
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -291,7 +257,10 @@ function Results({
   )
 }
 
-function CatalogLine({ info }: { info: CatalogInfo | undefined }) {
+function CatalogLine({ info, failed }: { info: CatalogInfo | undefined; failed: boolean }) {
+  if (failed) {
+    return <p className="mt-4 text-sm text-danger">Der Katalogstand konnte nicht geladen werden.</p>
+  }
   if (!info) {
     return null
   }
@@ -306,48 +275,113 @@ function CatalogLine({ info }: { info: CatalogInfo | undefined }) {
   )
 }
 
+type UrlField = ReturnType<typeof useUrlField>
+
+type NumberFieldProps = {
+  label: string
+  field: UrlField
+  hint: string
+  disabled: boolean
+  wide?: boolean
+}
+
+// Zahlenfeld mit Hinweis, wenn die Eingabe ungültig ist. Ungültiges geht nicht an die API.
+function NumberField({ label, field, hint, disabled, wide = false }: NumberFieldProps) {
+  const hintId = useId()
+  return (
+    <div
+      className={`flex flex-col gap-1 text-sm ${wide ? 'col-span-2 sm:col-span-1' : ''} sm:w-40`}
+    >
+      <label className="flex flex-col gap-1">
+        {label}
+        <input
+          inputMode="decimal"
+          value={field.value}
+          onChange={(event) => field.edit(event.target.value)}
+          disabled={disabled}
+          aria-invalid={field.invalid}
+          aria-describedby={field.invalid ? hintId : undefined}
+          className={`${fieldClass} ${field.invalid ? 'border-danger' : ''}`}
+        />
+      </label>
+      {/* Außerhalb des Labels, damit der Hinweis nicht Teil des Feldnamens wird */}
+      {field.invalid && (
+        <span id={hintId} className="text-danger">
+          {hint}
+        </span>
+      )}
+    </div>
+  )
+}
+
 /**
  * Ein Eingabefeld, dessen Wert verzögert in die Adresszeile geschrieben wird.
- * toUrl macht aus dem Text den Wert für die URL, toText aus der URL wieder einen Text.
+ * toUrl macht aus dem Text den Wert für die URL (null = ungültig), toText aus der URL wieder einen Text.
  */
 function useUrlField(
   params: URLSearchParams,
   key: string,
-  toUrl: (text: string) => string,
+  toUrl: (text: string) => string | null,
   toText: (urlValue: string) => string,
   update: (changes: ParamChanges) => void,
 ) {
   const urlValue = params.get(key) ?? ''
-  const [text, setText] = useState(() => toText(urlValue))
-  const debounced = useDebouncedValue(text, DEBOUNCE_MS)
+  const [value, setValue] = useState(() => toText(urlValue))
+  // Nur eine echte Eingabe schreibt in die URL. Das Laden einer Adresse (Zurück, Neuladen, geteilter
+  // Link) darf sie nie selbst umschreiben.
+  const edited = useRef(false)
+  const debounced = useDebouncedValue(value, DEBOUNCE_MS)
 
-  // Getippt: nach der Wartezeit in die URL schreiben.
+  // Getippt: nach der Wartezeit in die URL schreiben, ungültige Eingaben nicht.
   useEffect(() => {
-    if (toUrl(debounced) !== urlValue) update({ [key]: toUrl(debounced) })
+    const next = toUrl(debounced)
+    if (edited.current && next !== null && next !== urlValue) update({ [key]: next })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur auf neue Eingaben reagieren
   }, [debounced])
 
-  // Von außen geändert (z. B. „Filter zurücksetzen“ oder Zurück im Browser): Feld anpassen.
+  // Von außen geändert (z. B. Zurück im Browser): Feld anpassen.
   useEffect(() => {
-    if (toUrl(debounced) !== urlValue) setText(toText(urlValue))
+    if (toUrl(debounced) !== urlValue) {
+      edited.current = false
+      setValue(toText(urlValue))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur auf Änderungen der URL reagieren
   }, [urlValue])
 
-  return [text, setText] as const
+  return {
+    value,
+    edit(next: string) {
+      edited.current = true
+      setValue(next)
+    },
+    reset() {
+      edited.current = false
+      setValue('')
+    },
+    // Erst nach der Wartezeit markieren, damit „1,“ beim Tippen von „1,5“ nicht aufblinkt.
+    invalid: toUrl(debounced) === null,
+  }
 }
 
-function euroToUrl(text: string): string {
+function euroToUrl(text: string): string | null {
+  if (!isValidEuroInput(text)) return null
   const cents = parseEuroToCents(text)
   return cents === undefined ? '' : String(cents)
 }
 
 function centsToText(urlValue: string): string {
-  return urlValue === '' ? '' : centsToEuroInput(Number(urlValue))
+  const cents = Number(urlValue)
+  return urlValue === '' || !Number.isFinite(cents) ? '' : centsToEuroInput(cents)
 }
 
-function decimalToUrl(text: string): string {
+function decimalToUrl(text: string): string | null {
+  if (!isValidDecimalInput(text)) return null
   const value = parseDecimal(text)
   return value === undefined ? '' : String(value)
+}
+
+function decimalToText(urlValue: string): string {
+  return urlValue.replace('.', ',')
 }
 
 const fieldClass =

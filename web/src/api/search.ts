@@ -2,8 +2,11 @@ import type { SearchQuery, SearchSort } from './types'
 
 export const PAGE_SIZE = 20
 
-/** Höchstzahl der Treffer bei Sortierung nach Relevanz (Spezifikation 5.5) */
-export const RELEVANCE_LIMIT = 200
+/**
+ * Höchstzahl der Treffer einer Textsuche (Spezifikation 5.5). Das Backend schneidet bei jeder Sortierung
+ * hier ab, die anderen Sortierungen ordnen nur dieselbe Treffermenge um.
+ */
+export const TEXT_HIT_LIMIT = 200
 
 export const SORT_LABELS: Record<SearchSort, string> = {
   relevance: 'Relevanz',
@@ -28,17 +31,6 @@ export function readSearchQuery(params: URLSearchParams): SearchQuery {
     page: readPage(params.get('page')),
     pageSize: PAGE_SIZE,
   }
-}
-
-/** Baut den Query-String für die API, leere Werte fallen weg. */
-export function toQueryString(query: SearchQuery): string {
-  const params = new URLSearchParams()
-  for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== '') {
-      params.set(key, String(value))
-    }
-  }
-  return params.toString()
 }
 
 /** Ob außer dem Suchbegriff ein Filter gesetzt ist */

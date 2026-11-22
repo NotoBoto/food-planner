@@ -97,8 +97,10 @@ mit der Anzahl der Produkte. Einen Link zum Review gibt es nicht, die Seite ist 
   neuer Suchbegriff, ein Filter oder eine andere Sortierung setzt auf Seite 1 zurück, ein
   Seitenwechsel scrollt nach oben. Eine Seite hinter der letzten (etwa aus einer alten URL) zeigt
   „Diese Seite gibt es nicht“ und einen Link zu Seite 1.
-- Bei „Relevanz“ liefert die API höchstens 200 Treffer, also 10 Seiten. Sind es genau 200, steht
-  über dem Raster „Mindestens 200 Treffer, grenze die Suche ein“.
+- Eine Textsuche liefert höchstens 200 Treffer, also 10 Seiten, egal wie sortiert ist. Sind es genau
+  200, steht über dem Raster „Mindestens 200 Treffer, grenze die Suche ein“.
+- Ungültige Eingaben in Preis und Eiweiß (z. B. „1.000,50“ oder „abc“) werden unter dem Feld markiert
+  und nicht abgeschickt.
 - Ist der Katalog leer (`lastScrapedAt` ist `null`), steht statt Anzahl und Datum „Der Katalog ist
   noch leer“, und Suchfeld und Filter sind ausgegraut.
 

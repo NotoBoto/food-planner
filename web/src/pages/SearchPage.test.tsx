@@ -146,6 +146,9 @@ describe('SearchPage', () => {
     renderRoute('/')
     expect(await screen.findByText('Der Katalog ist noch leer.')).toBeInTheDocument()
     expect(screen.getByLabelText('Produkt, Marke oder EAN')).toBeDisabled()
+    // Es wird gar nicht erst gesucht, also auch kein zusätzliches „Keine Treffer“.
+    expect(searches).toHaveLength(0)
+    expect(screen.queryByText(/Keine Treffer/)).not.toBeInTheDocument()
   })
 
   it('zeigt die Treffer als Karten und behält den Suchbegriff in der Adresse', async () => {
@@ -153,5 +156,54 @@ describe('SearchPage', () => {
     expect(await screen.findByText('1 Treffer')).toBeInTheDocument()
     expect(screen.getByLabelText('Produkt, Marke oder EAN')).toHaveValue('hafer')
     expect(router.state.location.search).toBe('?q=hafer')
+  })
+
+  it('stellt Filter aus der Adresse exakt wieder her, ohne sie umzuschreiben', async () => {
+    const address = '?q=milch&maxPriceCents=123400&minProtein100g=2.5&page=2'
+    const router = renderRoute(`/${address}`)
+
+    await waitFor(() => expect(searches.length).toBeGreaterThan(0))
+    expect(screen.getByLabelText('Preis bis (€)')).toHaveValue('1234')
+    expect(screen.getByLabelText('Eiweiß ab (g pro 100 g)')).toHaveValue('2,5')
+
+    // Länger warten als die Verzögerung: Die Adresse darf sich nicht von selbst ändern.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(router.state.location.search).toBe(address)
+    for (const s of searches) {
+      expect(s.get('maxPriceCents')).toBe('123400')
+      expect(s.get('minProtein100g')).toBe('2.5')
+      expect(s.get('page')).toBe('2')
+    }
+  })
+
+  it('markiert eine ungültige Preiseingabe und schickt sie nicht ab', async () => {
+    renderRoute('/')
+    await screen.findByText('Haferflocken zart')
+
+    await userEvent.type(screen.getByLabelText('Preis von (€)'), '1.000,50')
+
+    expect(await screen.findByText('Bitte eine Zahl wie 1,50 eingeben.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Preis von (€)')).toHaveAttribute('aria-invalid', 'true')
+    expect(searches.some((s) => s.has('minPriceCents'))).toBe(false)
+  })
+
+  it('weist bei 200 Treffern auf die Grenze hin, auch bei anderer Sortierung', async () => {
+    answerSearch(() => HttpResponse.json(page([product()], { totalCount: 200, totalPages: 10 })))
+    renderRoute('/?q=milch&sort=price_asc')
+    expect(
+      await screen.findByText('Mindestens 200 Treffer, grenze die Suche ein.'),
+    ).toBeInTheDocument()
+  })
+
+  it('sagt Bescheid, wenn Kategorien oder Katalogstand nicht laden', async () => {
+    server.use(
+      http.get('*/api/v1/categories', () => new HttpResponse(null, { status: 500 })),
+      http.get('*/api/v1/catalog/info', () => new HttpResponse(null, { status: 500 })),
+    )
+    renderRoute('/')
+    expect(await screen.findByText('Kategorien konnten nicht geladen werden.')).toBeInTheDocument()
+    expect(screen.getByText('Der Katalogstand konnte nicht geladen werden.')).toBeInTheDocument()
+    // Die Suche läuft trotzdem.
+    expect(await screen.findByText('Haferflocken zart')).toBeInTheDocument()
   })
 })
