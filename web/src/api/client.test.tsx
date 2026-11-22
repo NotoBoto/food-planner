@@ -5,13 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { server } from '../test/server'
 import { apiGet } from './client'
-import type { CatalogInfo } from './types'
 
 // Kleine Testkomponente: lädt catalog/info und zeigt die Zahl oder den Fehler.
 function CatalogCount() {
   const query = useQuery({
     queryKey: ['catalog-info'],
-    queryFn: () => apiGet<CatalogInfo>('/catalog/info'),
+    queryFn: () => apiGet('/api/v1/catalog/info'),
   })
   if (query.error) return <ErrorMessage error={query.error} />
   if (!query.data) return <p>Lädt …</p>
@@ -61,5 +60,30 @@ describe('apiGet', () => {
     )
     renderWithQuery()
     expect(await screen.findByRole('alert')).toHaveTextContent('HTTP 502')
+  })
+
+  it('hängt die Query-Parameter an und lässt leere weg', async () => {
+    let requested: URLSearchParams | undefined
+    server.use(
+      http.get('*/api/v1/products/search', ({ request }) => {
+        requested = new URL(request.url).searchParams
+        return HttpResponse.json({ items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })
+      }),
+    )
+    await apiGet('/api/v1/products/search', { q: 'milch', sort: 'price_asc', category: undefined })
+    expect(requested?.get('q')).toBe('milch')
+    expect(requested?.get('sort')).toBe('price_asc')
+    expect(requested?.has('category')).toBe(false)
+  })
+
+  // Diese Aufrufe laufen nie. tsc prüft beim Bauen, dass sie Typfehler sind.
+  it('lässt nur Pfade und Parameter aus der Spezifikation zu', () => {
+    const typeChecks = () => {
+      // @ts-expect-error unbekannter Pfad
+      void apiGet('/api/v1/gibt-es-nicht')
+      // @ts-expect-error sort nur in snake_case
+      void apiGet('/api/v1/products/search', { sort: 'PRICE_ASC' })
+    }
+    expect(typeChecks).toBeTypeOf('function')
   })
 })
