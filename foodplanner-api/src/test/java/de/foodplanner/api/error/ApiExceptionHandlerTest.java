@@ -1,7 +1,6 @@
 package de.foodplanner.api.error;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,19 +51,40 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
-    void returnValueViolationIsRethrown() {
+    void returnValueViolationIs500WithoutDetails() {
         ConstraintViolationException exception = exception(violation("darf nicht null sein",
                 node("handle", ElementKind.METHOD), node("<return value>", ElementKind.RETURN_VALUE)));
 
-        assertThatThrownBy(() -> handler.constraintViolation(exception)).isSameAs(exception);
+        ProblemDetail problem = handler.constraintViolation(exception);
+
+        assertThat(problem.getStatus()).isEqualTo(500);
+        assertThat(problem.getDetail()).doesNotContain("darf nicht null sein");
     }
 
     @Test
-    void beanViolationWithoutParameterIsRethrown() {
+    void beanViolationWithoutParameterIs500WithoutDetails() {
         ConstraintViolationException exception = exception(violation("darf nicht leer sein",
                 node("name", ElementKind.PROPERTY)));
 
-        assertThatThrownBy(() -> handler.constraintViolation(exception)).isSameAs(exception);
+        ProblemDetail problem = handler.constraintViolation(exception);
+
+        assertThat(problem.getStatus()).isEqualTo(500);
+    }
+
+    @Test
+    void unexpectedExceptionIs500WithoutInternals() {
+        ProblemDetail problem = handler.unexpected(new IllegalStateException("geheimes Detail"));
+
+        assertThat(problem.getStatus()).isEqualTo(500);
+        assertThat(problem.getDetail()).doesNotContain("geheim");
+    }
+
+    @Test
+    void springErrorResponseKeepsItsStatus() {
+        ProblemDetail problem = handler.unexpected(
+                new org.springframework.web.HttpRequestMethodNotSupportedException("POST"));
+
+        assertThat(problem.getStatus()).isEqualTo(405);
     }
 
     @Test
@@ -87,6 +107,16 @@ class ApiExceptionHandlerTest {
         assertThat(problem.getTitle()).isEqualTo("Konflikt mit bestehender Ressource");
         assertThat(problem.getDetail()).isEqualTo("Rezept existiert bereits.");
         assertThat(problem.getProperties()).isNullOrEmpty();
+    }
+
+    @Test
+    void resourceConflictWithReasonExposesIt() {
+        ProblemDetail problem = handler.resourceConflict(
+                new ResourceConflictException("Der Artikel hat keine Packungsgröße.", "REFUSED_NO_PACKAGE_SIZE"));
+
+        assertThat(problem.getStatus()).isEqualTo(409);
+        assertThat(Objects.requireNonNull(problem.getProperties()))
+                .containsEntry("reason", "REFUSED_NO_PACKAGE_SIZE");
     }
 
     @Test

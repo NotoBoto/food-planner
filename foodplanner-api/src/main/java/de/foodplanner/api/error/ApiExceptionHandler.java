@@ -13,6 +13,9 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.ErrorResponse;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -28,6 +31,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 class ApiExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
     /**
      * Nur Verletzungen an Methodenparametern sind Fehler der Anfrage. Eine Verletzung am Rückgabewert oder an einem
      * Objekt, das der Server selbst gebaut hat, ist ein Serverfehler; sie wird weitergeworfen und endet als 500.
@@ -37,7 +42,7 @@ class ApiExceptionHandler {
         if (exception.getConstraintViolations().isEmpty()
                 || !exception.getConstraintViolations().stream()
                         .allMatch(violation -> isParameterViolation(violation.getPropertyPath()))) {
-            throw exception;
+            return internalError(exception);
         }
         Map<String, List<String>> messages = new TreeMap<>();
         for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
@@ -60,6 +65,9 @@ class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.CONFLICT, exception.getMessage());
         problem.setTitle("Konflikt mit bestehender Ressource");
+        if (exception.getReason() != null) {
+            problem.setProperty("reason", exception.getReason());
+        }
         return problem;
     }
 
@@ -68,9 +76,8 @@ class ApiExceptionHandler {
     ProblemDetail methodArgumentNotValid(MethodArgumentNotValidException exception) {
         Map<String, List<String>> messages = new TreeMap<>();
         for (FieldError error : exception.getBindingResult().getFieldErrors()) {
-            messages.computeIfAbsent(error.getField(), key -> new ArrayList<>())
-                    .add(error.getDefaultMessage());
-        }
+            String message = error.isBindingFailure() ? "Ungültiger Wert." : error.getDefaultMessage();
+            messages.computeIfAbsent(error.getField(), key -> new ArrayList<>()).add(message);        }
         for (ObjectError error : exception.getBindingResult().getGlobalErrors()) {
             messages.computeIfAbsent(error.getObjectName(), key -> new ArrayList<>())
                     .add(error.getDefaultMessage());
@@ -90,6 +97,23 @@ class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Der Anfragekörper ist ungültig oder fehlt.");
         problem.setTitle("Ungültige Anfrage");
+        return problem;
+    }
+
+    @ExceptionHandler(Exception.class)
+    ProblemDetail unexpected(Exception exception) {
+        // Spring-eigene Fehler (405, 415, unbekannte URL, ...) behalten ihren Status
+        if (exception instanceof ErrorResponse errorResponse) {
+            return errorResponse.getBody();
+        }
+        return internalError(exception);
+    }
+
+    private static ProblemDetail internalError(Exception exception) {
+        log.error("Unerwarteter Fehler", exception);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR, "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es später erneut.");
+        problem.setTitle("Interner Fehler");
         return problem;
     }
 
