@@ -4,6 +4,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
@@ -11,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverter;
 import io.swagger.v3.core.converter.ModelConverterContext;
+import io.swagger.v3.oas.models.SpecVersion;
 import io.swagger.v3.oas.models.media.Schema;
 
 /**
@@ -47,13 +49,32 @@ class RecordSchemaConverter implements ModelConverter {
             if (model.getRequired() == null || !model.getRequired().contains(component.getName())) {
                 model.addRequiredItem(component.getName());
             }
-            if (component.getAnnotatedType().isAnnotationPresent(Nullable.class) && property.getTypes() != null) {
-                Set<String> types = new LinkedHashSet<>(property.getTypes());
-                types.add("null");
-                property.setTypes(types);
+            if (component.getAnnotatedType().isAnnotationPresent(Nullable.class)) {
+                model.getProperties().put(component.getName(), nullable(property));
             }
         }
         return resolved;
+    }
+
+    /**
+     * Ein einfacher Typ bekommt {@code "null"} dazu ({@code ["string", "null"]}). Ein Verweis auf ein anderes Schema
+     * hat keinen eigenen Typ, er wird deshalb zu {@code anyOf: [$ref, {type: null}]}. Beides macht openapi-typescript
+     * zu {@code … | null}.
+     */
+    private static Schema<?> nullable(Schema<?> property) {
+        if (property.get$ref() != null) {
+            return new Schema<>()
+                    .specVersion(SpecVersion.V31)
+                    .anyOf(List.of(
+                            new Schema<>().specVersion(SpecVersion.V31).$ref(property.get$ref()),
+                            new Schema<>().specVersion(SpecVersion.V31).types(Set.of("null"))));
+        }
+        if (property.getTypes() != null) {
+            Set<String> types = new LinkedHashSet<>(property.getTypes());
+            types.add("null");
+            property.setTypes(types);
+        }
+        return property;
     }
 
     private static @Nullable Class<?> rawClass(@Nullable Object type) {

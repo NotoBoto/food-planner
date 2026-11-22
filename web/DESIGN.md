@@ -19,6 +19,13 @@ Datei neu schreiben und mit committen, in IntelliJ über die Run Configuration �
 neu schreiben“ oder auf der Kommandozeile mit
 `./mvnw -pl foodplanner-api -am test -Dtest=OpenApiSpecTest -Dsurefire.failIfNoSpecifiedTests=false -Dopenapi.write=true`.
 
+`apiGet` nimmt Pfad, Query-Parameter und Antwort direkt aus diesen Typen, ein Tippfehler im Pfad oder
+ein unbekannter Parameter fällt also schon beim Bauen auf.
+
+TypeScript bleibt bei 5.9, weil `openapi-typescript` TypeScript 7 noch nicht unterstützt. Vor einem
+Update auf 7 prüfen, ob `npm run api:types` noch läuft. Weil die Typen nach `npm install` entstehen,
+muss `openapi.json` im Dockerfile vor `npm ci` kopiert werden (`COPY package*.json openapi.json ./`).
+
 ## Abweichungen von der Spezifikation
 
 Vorschläge, die das Team noch abnicken muss. Bis dahin gilt die Spezifikation

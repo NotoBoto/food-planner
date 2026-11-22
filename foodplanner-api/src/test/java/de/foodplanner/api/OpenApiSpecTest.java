@@ -2,6 +2,7 @@ package de.foodplanner.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
@@ -61,6 +62,14 @@ class OpenApiSpecTest {
     @Test
     void swaggerUiIsServed() throws Exception {
         mockMvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk());
+    }
+
+    @Test
+    void swaggerUiIsReachableUnderTheDocumentedAddress() throws Exception {
+        // Die Adresse aus der Spezifikation (§9.1) leitet auf die eigentliche Seite weiter.
+        mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/swagger-ui/index.html"));
     }
 
     @Test

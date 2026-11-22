@@ -7,7 +7,6 @@ import org.springdoc.core.customizers.ParameterCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import de.foodplanner.application.port.SearchSort;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.StringSchema;
@@ -34,18 +33,20 @@ class OpenApiConfig {
     }
 
     /**
-     * {@link SearchSort} wird als {@code price_asc} usw. angenommen ({@link SnakeCaseEnumConverter}).
-     * Ohne Anpassung stünden in der Spezifikation die Java-Namen wie {@code PRICE_ASC}.
+     * Die Enums aus {@link WebConfig#SNAKE_CASE_ENUMS} werden als {@code price_asc} usw. angenommen
+     * ({@link SnakeCaseEnumConverter}). Ohne Anpassung stünden in der Spezifikation die Java-Namen wie
+     * {@code PRICE_ASC}.
      */
     @Bean
-    ParameterCustomizer snakeCaseSortParameter() {
+    ParameterCustomizer snakeCaseEnumParameters() {
         return (parameter, methodParameter) -> {
-            if (parameter == null || methodParameter.getParameterType() != SearchSort.class) {
+            Class<?> type = methodParameter.getParameterType();
+            if (parameter == null || !WebConfig.SNAKE_CASE_ENUMS.contains(type)) {
                 return parameter;
             }
             StringSchema schema = new StringSchema();
-            for (SearchSort sort : SearchSort.values()) {
-                schema.addEnumItem(sort.name().toLowerCase(Locale.ROOT));
+            for (Object constant : type.getEnumConstants()) {
+                schema.addEnumItem(((Enum<?>) constant).name().toLowerCase(Locale.ROOT));
             }
             if (parameter.getSchema() != null && parameter.getSchema().getDefault() != null) {
                 schema.setDefault(parameter.getSchema().getDefault().toString().toLowerCase(Locale.ROOT));
