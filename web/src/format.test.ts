@@ -7,6 +7,9 @@ import {
   formatPackage,
   formatPrice,
   formatPricePerUnit,
+  isValidDecimalInput,
+  isValidEuroInput,
+  parseDecimal,
   parseEuroToCents,
   per100,
 } from './format'
@@ -52,9 +55,40 @@ describe('format', () => {
     expect(parseEuroToCents('2.5')).toBe(250)
     expect(parseEuroToCents(' 3 ')).toBe(300)
     expect(parseEuroToCents('')).toBeUndefined()
-    expect(parseEuroToCents('abc')).toBeUndefined()
-    expect(parseEuroToCents('-1')).toBeUndefined()
     expect(centsToEuroInput(150)).toBe('1,5')
     expect(centsToEuroInput(undefined)).toBe('')
+  })
+
+  it('schreibt Beträge ins Feld ohne Tausenderpunkt', () => {
+    expect(centsToEuroInput(123400)).toBe('1234')
+  })
+
+  it.each([0, 1, 150, 99999, 123400])(
+    'liest %i Cent nach dem Schreiben unverändert zurück',
+    (cents) => {
+      expect(parseEuroToCents(centsToEuroInput(cents))).toBe(cents)
+    },
+  )
+
+  it.each(['abc', '-1', '0x10', '1e20', '1.000,50', '1,005', '1,'])(
+    'lehnt die Euro-Eingabe „%s“ ab',
+    (text) => {
+      expect(parseEuroToCents(text)).toBeUndefined()
+      expect(isValidEuroInput(text)).toBe(false)
+    },
+  )
+
+  it('liest Gramm-Eingaben und lehnt Unsinn ab', () => {
+    expect(parseDecimal('2,5')).toBe(2.5)
+    expect(parseDecimal('10')).toBe(10)
+    expect(isValidDecimalInput('')).toBe(true)
+    for (const text of ['abc', '-1', '0x10', '1e20', '1.000,5']) {
+      expect(parseDecimal(text)).toBeUndefined()
+      expect(isValidDecimalInput(text)).toBe(false)
+    }
+  })
+
+  it('zeigt ein ungültiges Datum als Strich, statt abzustürzen', () => {
+    expect(formatDate('kein Datum')).toBe('–')
   })
 })

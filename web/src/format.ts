@@ -55,28 +55,46 @@ export function formatCount(value: number): string {
   return wholeNumber.format(value)
 }
 
-/** ISO-Zeitpunkt → „17.11.2026“ (deutsche Zeit) */
+/** ISO-Zeitpunkt → „17.11.2026“ (deutsche Zeit), ein ungültiger Wert als „–“ */
 export function formatDate(iso: string): string {
-  return date.format(new Date(iso))
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? '–' : date.format(parsed)
 }
 
-/** Eingabe in Euro mit Komma oder Punkt → Cent. Leer oder ungültig → undefined. */
+// Eingaben in Zahlenfeldern: nur Ziffern, Komma oder Punkt als Dezimaltrenner, kein Tausenderpunkt.
+// Euro mit höchstens zwei Nachkommastellen („1,50“), Gramm mit beliebig vielen („2,5“).
+const EURO_INPUT = /^(\d{1,9})(?:[.,](\d{1,2}))?$/
+const DECIMAL_INPUT = /^\d{1,6}(?:[.,]\d{1,3})?$/
+
+// Fürs Eingabefeld ohne Tausenderpunkt, damit „1234“ beim Zurücklesen nicht zu 1,234 € wird.
+const euroInput = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2, useGrouping: false })
+
+/** Eingabe in Euro → Cent, ohne Rundung über Kommazahlen („1,5“ → 150). Leer oder ungültig → undefined. */
 export function parseEuroToCents(text: string): number | undefined {
-  const value = parseDecimal(text)
-  return value === undefined ? undefined : Math.round(value * 100)
-}
-
-/** Cent → Text fürs Eingabefeld („1,5“ statt „1,50 €“) */
-export function centsToEuroInput(cents: number | undefined): string {
-  return cents === undefined ? '' : upToTwoDecimals.format(cents / 100)
-}
-
-/** Dezimalzahl mit Komma oder Punkt, nicht negativ. Leer oder ungültig → undefined. */
-export function parseDecimal(text: string): number | undefined {
-  const normalized = text.trim().replace(',', '.')
-  if (normalized === '') {
+  const match = EURO_INPUT.exec(text.trim())
+  if (!match) {
     return undefined
   }
-  const value = Number(normalized)
-  return Number.isFinite(value) && value >= 0 ? value : undefined
+  return Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'))
+}
+
+/** Ob ein Euro-Feld leer ist oder eine gültige Eingabe enthält */
+export function isValidEuroInput(text: string): boolean {
+  return text.trim() === '' || EURO_INPUT.test(text.trim())
+}
+
+/** Cent → Text fürs Eingabefeld („1,5“ statt „1,50 €“, „1234“ statt „1.234“) */
+export function centsToEuroInput(cents: number | undefined): string {
+  return cents === undefined ? '' : euroInput.format(cents / 100)
+}
+
+/** Dezimalzahl mit Komma oder Punkt („2,5“), nicht negativ. Leer oder ungültig → undefined. */
+export function parseDecimal(text: string): number | undefined {
+  const trimmed = text.trim()
+  return DECIMAL_INPUT.test(trimmed) ? Number(trimmed.replace(',', '.')) : undefined
+}
+
+/** Ob ein Dezimal-Feld leer ist oder eine gültige Eingabe enthält */
+export function isValidDecimalInput(text: string): boolean {
+  return text.trim() === '' || DECIMAL_INPUT.test(text.trim())
 }
