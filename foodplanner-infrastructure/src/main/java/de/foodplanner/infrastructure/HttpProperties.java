@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.AssertTrue;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
+import java.util.Locale;
 import java.util.regex.Matcher;
 
 @Validated
@@ -23,7 +24,7 @@ public record HttpProperties(
         Matcher matcher = java.util.regex.Pattern.compile("[\\w.%+\\-]+@([\\w.-]+)",
                 java.util.regex.Pattern.CASE_INSENSITIVE).matcher(userAgent);
         while (matcher.find()) {
-            String domain = matcher.group(1).toLowerCase(java.util.Locale.ROOT);
+            String domain = matcher.group(1).toLowerCase(Locale.ROOT);
             if (domain.equals("localhost")
                     || domain.endsWith(".localhost")
                     || domain.endsWith(".invalid")

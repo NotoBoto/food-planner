@@ -7,9 +7,11 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
 public class JdbcScrapedPageRepository implements ScrapedPageRepository {
 
     private final JdbcTemplate jdbc;

@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
 public class HttpRequester {
 
+    private static final Duration MAX_RETRY_DELAY = Duration.ofSeconds(60);
+
     private final HttpClient client;
     private final HttpProperties properties;
     private final RequestGate gate;
@@ -77,17 +79,26 @@ public class HttpRequester {
         String retryAfter = response.headers().firstValue("Retry-After").orElse(null);
         if (retryAfter != null) {
             try {
-                return nonNegative(Duration.ofSeconds(Long.parseLong(retryAfter.trim())));
+                return limitRetryDelay(nonNegative(Duration.ofSeconds(Long.parseLong(retryAfter.trim()))));
             } catch (NumberFormatException ignored) {
+                Duration delay;
                 try {
-                    return nonNegative(Duration.between(clock.instant(),
+                    delay = nonNegative(Duration.between(clock.instant(),
                             ZonedDateTime.parse(retryAfter, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()));
                 } catch (RuntimeException ignoredDate) {
-                    // Fall back to the defined exponential delay for malformed headers.
+                    return nonNegative(Duration.ofSeconds(1L << attempt));
                 }
+                return limitRetryDelay(delay);
             }
         }
         return nonNegative(Duration.ofSeconds(1L << attempt));
+    }
+
+    private static Duration limitRetryDelay(Duration delay) {
+        if (delay.compareTo(MAX_RETRY_DELAY) > 0) {
+            throw new IllegalStateException("Server verlangt eine Pause von " + delay.toSeconds() + " s");
+        }
+        return delay;
     }
 
     private static Duration nonNegative(Duration duration) {

@@ -13,6 +13,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.http.Fault;
 import java.net.URI;
+import java.net.InetSocketAddress;
+import com.sun.net.httpserver.HttpServer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -135,11 +137,24 @@ class HttpRequesterTest {
     }
 
     @Test
+    void rejectsRetryAfterAboveTheMaximum() {
+        stubFor(get(urlEqualTo("/too-long"))
+                .willReturn(aResponse().withStatus(429)
+                        .withHeader("Retry-After", "3600")));
+
+        assertThatThrownBy(() -> requester.get(URI.create(server.baseUrl() + "/too-long")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("3600");
+        assertThat(waits).isEmpty();
+        server.verify(1, getRequestedFor(urlEqualTo("/too-long")));
+    }
+
+    @Test
     void limitsConcurrentRequestsToConfiguredConcurrency() throws Exception {
         AtomicInteger active = new AtomicInteger();
         AtomicInteger maximum = new AtomicInteger();
-        var httpServer = com.sun.net.httpserver.HttpServer
-                .create(new java.net.InetSocketAddress("localhost", 0), 0);
+        var httpServer = HttpServer
+                .create(new InetSocketAddress("localhost", 0), 0);
         var serverExecutor = Executors.newVirtualThreadPerTaskExecutor();
         httpServer.setExecutor(serverExecutor);
         httpServer.createContext("/concurrent", exchange -> {

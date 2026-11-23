@@ -95,6 +95,16 @@ class AldiPriceScraperTest {
     }
 
     @Test
+    void repeatedTooManyRequestsForRobotsTxtAbortsBeforeSitemap() {
+        stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse().withStatus(429)));
+
+        assertThatThrownBy(() -> scraper.scrape(false))
+                .hasMessageContaining("HTTP 429");
+        server.verify(0, getRequestedFor(urlEqualTo("/sitemap_products.xml")));
+        server.verify(0, getRequestedFor(urlEqualTo("/product/1")));
+    }
+
+    @Test
     void skipsUnchangedLastmodButFetchesEntriesWithoutLastmodAgain() {
         stubFor(get(urlEqualTo("/robots.txt")).willReturn(aResponse()
                 .withBody("User-agent: *\nAllow: /\n")));

@@ -132,7 +132,8 @@ public class AldiPriceScraper implements PriceScraper {
 
     private BaseRobotRules readRules(URI robotsUri) throws IOException, InterruptedException {
         HttpResponse<String> response = requester.get(robotsUri);
-        if (response.statusCode() >= 400 && response.statusCode() < 500) {
+        if (response.statusCode() >= 400 && response.statusCode() < 500
+                && response.statusCode() != 429) {
             return new SimpleRobotRulesParser().parseContent(
                     robotsUri.toString(), new byte[0], "text/plain", httpProperties.userAgent());
         }
