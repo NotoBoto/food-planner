@@ -1,9 +1,17 @@
 # food-planner
 
-Lokaler API-/Ingestion-Start benötigt eine echte Kontaktadresse:
+[![CI](https://github.com/NotoBoto/food-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/NotoBoto/food-planner/actions/workflows/ci.yml)
 
-```shell
-$env:HTTP_USER_AGENT="FoodPlanner/0.1 (mailto:deine-adresse@example.de)"
+## Lokal starten
+
+API und Ingestion starten nur mit einer echten Kontaktadresse im `User-Agent`:
+
+```powershell
+# PowerShell
+$env:HTTP_USER_AGENT="FoodPlanner/0.1 (mailto:<deine-echte-adresse>)"
 ```
 
-[![CI](https://github.com/NotoBoto/food-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/NotoBoto/food-planner/actions/workflows/ci.yml)
+```bash
+# Bash
+export HTTP_USER_AGENT="FoodPlanner/0.1 (mailto:<deine-echte-adresse>)"
+```
