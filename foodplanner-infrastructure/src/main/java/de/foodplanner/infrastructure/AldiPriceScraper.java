@@ -1,14 +1,5 @@
 package de.foodplanner.infrastructure;
 
-import crawlercommons.robots.BaseRobotRules;
-import crawlercommons.robots.SimpleRobotRulesParser;
-import crawlercommons.sitemaps.AbstractSiteMap;
-import crawlercommons.sitemaps.SiteMap;
-import crawlercommons.sitemaps.SiteMapParser;
-import crawlercommons.sitemaps.SiteMapURL;
-import de.foodplanner.application.PriceScraper;
-import de.foodplanner.application.ScrapedPage;
-import de.foodplanner.application.ScrapedPageRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -24,8 +15,19 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+
+import crawlercommons.robots.BaseRobotRules;
+import crawlercommons.robots.SimpleRobotRulesParser;
+import crawlercommons.sitemaps.AbstractSiteMap;
+import crawlercommons.sitemaps.SiteMap;
+import crawlercommons.sitemaps.SiteMapParser;
+import crawlercommons.sitemaps.SiteMapURL;
+import de.foodplanner.application.PriceScraper;
+import de.foodplanner.application.ScrapedPage;
+import de.foodplanner.application.ScrapedPageRepository;
 
 @Component
 @ConditionalOnProperty(name = "ingestion.enabled", havingValue = "true")
