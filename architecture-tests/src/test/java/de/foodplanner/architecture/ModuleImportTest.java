@@ -21,8 +21,8 @@ class ModuleImportTest {
         // maven-compiler-plugin legt package-info.class auch ohne Annotationen an (createMissingPackageInfoClass)
         assertThat(List.of(
                 "de.foodplanner.domain.search.SearchText",
-                "de.foodplanner.application.package-info",
-                "de.foodplanner.infrastructure.package-info",
+                "de.foodplanner.application.PriceScraper",
+                "de.foodplanner.infrastructure.AldiPriceScraper",
                 "de.foodplanner.api.ApiApplication",
                 "de.foodplanner.ingestion.IngestionApplication"))
                 .allMatch(classes::contain);
