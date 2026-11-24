@@ -100,7 +100,8 @@ mit der Anzahl der Produkte. Einen Link zum Review gibt es nicht, die Seite ist 
 - Eine Textsuche liefert höchstens 200 Treffer, also 10 Seiten, egal wie sortiert ist. Sind es genau
   200, steht über dem Raster „Mindestens 200 Treffer, grenze die Suche ein“.
 - Ungültige Eingaben in Preis und Eiweiß (z. B. „1.000,50“ oder „abc“) werden unter dem Feld markiert
-  und nicht abgeschickt.
+  und nicht abgeschickt. Bis dahin gilt der vorherige Filter, das steht im Hinweis („Es gilt weiter
+  ab 1,50 €“).
 - Ist der Katalog leer (`lastScrapedAt` ist `null`), steht statt Anzahl und Datum „Der Katalog ist
   noch leer“, und Suchfeld und Filter sind ausgegraut.
 

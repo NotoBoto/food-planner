@@ -1,6 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { catalogInfo, page, product } from '../test/handlers'
 import { renderRoute } from '../test/render'
@@ -143,12 +143,25 @@ describe('SearchPage', () => {
         HttpResponse.json({ ...catalogInfo, productCount: 0, lastScrapedAt: null }),
       ),
     )
+    answerSearch(() => HttpResponse.json(page([])))
     renderRoute('/')
     expect(await screen.findByText('Der Katalog ist noch leer.')).toBeInTheDocument()
     expect(screen.getByLabelText('Produkt, Marke oder EAN')).toBeDisabled()
-    // Es wird gar nicht erst gesucht, also auch kein zusätzliches „Keine Treffer“.
-    expect(searches).toHaveLength(0)
+    // Höchstens die eine Suche, die parallel zu catalog/info lief, und kein zusätzliches „Keine Treffer“.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(searches.length).toBeLessThanOrEqual(1)
     expect(screen.queryByText(/Keine Treffer/)).not.toBeInTheDocument()
+  })
+
+  it('wartet mit der Suche nicht auf den Katalogstand', async () => {
+    server.use(
+      http.get('*/api/v1/catalog/info', async () => {
+        await delay('infinite')
+        return HttpResponse.json(catalogInfo)
+      }),
+    )
+    renderRoute('/')
+    expect(await screen.findByText('Haferflocken zart')).toBeInTheDocument()
   })
 
   it('zeigt die Treffer als Karten und behält den Suchbegriff in der Adresse', async () => {
@@ -174,6 +187,33 @@ describe('SearchPage', () => {
       expect(s.get('minProtein100g')).toBe('2.5')
       expect(s.get('page')).toBe('2')
     }
+  })
+
+  it('schreibt die Adresse auch dann nicht um, wenn ein Wert anders zurückkommt', async () => {
+    // „2.50“ wird im Feld zu „2,5“ und zurück zu „2.5“. Beim Laden darf das nicht in der URL landen,
+    // sonst wäre auch page=2 weg.
+    const address = '?q=milch&minProtein100g=2.50&page=2'
+    const router = renderRoute(`/${address}`)
+
+    await waitFor(() => expect(searches.length).toBeGreaterThan(0))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(router.state.location.search).toBe(address)
+    expect(lastSearch().get('minProtein100g')).toBe('2.5')
+    expect(lastSearch().get('page')).toBe('2')
+  })
+
+  it('nennt bei ungültiger Eingabe den Filter, der weiter gilt', async () => {
+    renderRoute('/?minPriceCents=150')
+    await screen.findByText('Haferflocken zart')
+
+    const field = screen.getByLabelText('Preis von (€)')
+    await userEvent.clear(field)
+    await userEvent.type(field, '1.000,50')
+
+    expect(
+      await screen.findByText('Bitte eine Zahl wie 1,50 eingeben. Es gilt weiter ab 1,50 €.'),
+    ).toBeInTheDocument()
+    expect(lastSearch().get('minPriceCents')).toBe('150')
   })
 
   it('markiert eine ungültige Preiseingabe und schickt sie nicht ab', async () => {

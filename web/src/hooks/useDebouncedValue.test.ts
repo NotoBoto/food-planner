@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEBOUNCE_MS } from '../pages/SearchPage'
+import { DEBOUNCE_MS } from '../api/search'
 import { useDebouncedValue } from './useDebouncedValue'
 
 // Mit Fake-Timern lässt sich die Zeit millisekundengenau vorspulen.

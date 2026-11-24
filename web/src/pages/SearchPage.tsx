@@ -2,7 +2,13 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { apiGet } from '../api/client'
-import { hasFilters, readSearchQuery, SORT_LABELS, TEXT_HIT_LIMIT } from '../api/search'
+import {
+  DEBOUNCE_MS,
+  hasFilters,
+  readSearchQuery,
+  SORT_LABELS,
+  TEXT_HIT_LIMIT,
+} from '../api/search'
 import type { CatalogInfo, PagedProductSummaries, SearchSort } from '../api/types'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { Pagination } from '../components/Pagination'
@@ -11,6 +17,8 @@ import {
   centsToEuroInput,
   formatCount,
   formatDate,
+  formatGrams,
+  formatPrice,
   isValidDecimalInput,
   isValidEuroInput,
   parseDecimal,
@@ -18,9 +26,6 @@ import {
 } from '../format'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { addToList } from '../list/addToList'
-
-/** Wartezeit nach dem letzten Tastendruck, bevor gesucht wird */
-export const DEBOUNCE_MS = 300
 
 type ParamChanges = Record<string, string | undefined>
 
@@ -90,9 +95,9 @@ export function SearchPage() {
   const search = useQuery({
     queryKey: ['search', query],
     queryFn: () => apiGet('/api/v1/products/search', query),
-    // Erst suchen, wenn feststeht, ob der Katalog leer ist. Bei leerem Katalog gibt es nichts zu
-    // suchen, sonst stünde dort zusätzlich „Keine Treffer“. Schlägt catalog/info fehl, wird trotzdem gesucht.
-    enabled: catalog.isFetched && !catalogEmpty,
+    // Läuft parallel zu catalog/info und hört erst auf, wenn der Katalog sicher leer ist.
+    // Ein Fehler oder eine langsame Antwort von catalog/info hält die Suche also nicht auf.
+    enabled: !catalogEmpty,
     // Während eine neue Suche lädt, bleiben die alten Treffer stehen (web/DESIGN.md, Zustände).
     placeholderData: keepPreviousData,
   })
@@ -167,18 +172,31 @@ export function SearchPage() {
           label="Preis von (€)"
           field={minPrice}
           hint="Bitte eine Zahl wie 1,50 eingeben."
+          current={
+            query.minPriceCents === undefined ? undefined : `ab ${formatPrice(query.minPriceCents)}`
+          }
           disabled={catalogEmpty}
         />
         <NumberField
           label="Preis bis (€)"
           field={maxPrice}
           hint="Bitte eine Zahl wie 1,50 eingeben."
+          current={
+            query.maxPriceCents === undefined
+              ? undefined
+              : `bis ${formatPrice(query.maxPriceCents)}`
+          }
           disabled={catalogEmpty}
         />
         <NumberField
           label="Eiweiß ab (g pro 100 g)"
           field={minProtein}
           hint="Bitte eine Zahl wie 10 oder 2,5 eingeben."
+          current={
+            query.minProtein100g === undefined
+              ? undefined
+              : `ab ${formatGrams(query.minProtein100g)}`
+          }
           disabled={catalogEmpty}
           wide
         />
@@ -186,21 +204,24 @@ export function SearchPage() {
 
       <CatalogLine info={catalog.data} failed={Boolean(catalog.error)} />
 
-      <section className="mt-8" aria-live="polite">
-        {search.error && <ErrorMessage error={search.error} fieldLabels={FIELD_LABELS} />}
+      {/* Bei leerem Katalog genügt der Hinweis darüber, ohne zusätzliches „Keine Treffer“. */}
+      {!catalogEmpty && (
+        <section className="mt-8" aria-live="polite">
+          {search.error && <ErrorMessage error={search.error} fieldLabels={FIELD_LABELS} />}
 
-        {!search.data && search.isLoading && <p className="text-ink-muted">Lädt …</p>}
+          {!search.data && search.isLoading && <p className="text-ink-muted">Lädt …</p>}
 
-        {search.data && (
-          <Results
-            data={search.data}
-            searchText={query.q}
-            filtersSet={hasFilters(query)}
-            onResetFilters={resetFilters}
-            onPage={goToPage}
-          />
-        )}
-      </section>
+          {search.data && (
+            <Results
+              data={search.data}
+              searchText={query.q}
+              filtersSet={hasFilters(query)}
+              onResetFilters={resetFilters}
+              onPage={goToPage}
+            />
+          )}
+        </section>
+      )}
     </>
   )
 }
@@ -281,12 +302,15 @@ type NumberFieldProps = {
   label: string
   field: UrlField
   hint: string
+  /** Der Filter, der gerade gilt, z. B. „ab 1,50 €“ */
+  current: string | undefined
   disabled: boolean
   wide?: boolean
 }
 
-// Zahlenfeld mit Hinweis, wenn die Eingabe ungültig ist. Ungültiges geht nicht an die API.
-function NumberField({ label, field, hint, disabled, wide = false }: NumberFieldProps) {
+// Zahlenfeld mit Hinweis, wenn die Eingabe ungültig ist. Ungültiges geht nicht an die API,
+// es gilt weiter der vorherige Filter. Das steht dann auch im Hinweis.
+function NumberField({ label, field, hint, current, disabled, wide = false }: NumberFieldProps) {
   const hintId = useId()
   return (
     <div
@@ -308,6 +332,7 @@ function NumberField({ label, field, hint, disabled, wide = false }: NumberField
       {field.invalid && (
         <span id={hintId} className="text-danger">
           {hint}
+          {current && ` Es gilt weiter ${current}.`}
         </span>
       )}
     </div>

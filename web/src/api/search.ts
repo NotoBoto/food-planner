@@ -2,6 +2,9 @@ import type { SearchQuery, SearchSort } from './types'
 
 export const PAGE_SIZE = 20
 
+/** Wartezeit nach dem letzten Tastendruck, bevor gesucht wird */
+export const DEBOUNCE_MS = 300
+
 /**
  * Höchstzahl der Treffer einer Textsuche (Spezifikation 5.5). Das Backend schneidet bei jeder Sortierung
  * hier ab, die anderen Sortierungen ordnen nur dieselbe Treffermenge um.
