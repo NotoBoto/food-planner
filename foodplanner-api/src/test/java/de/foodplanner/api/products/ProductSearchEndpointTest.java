@@ -10,17 +10,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
+import de.foodplanner.infrastructure.TestCatalog;
 
 /** Endpunktvertrag von {@code GET /api/v1/products/search} (§5.1). Jeder Test rollt seine Daten zurück. */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(PostgresTestConfiguration.class)
+@Import({PostgresTestConfiguration.class, TestCatalog.class})
 @Transactional
 class ProductSearchEndpointTest {
 
@@ -28,7 +28,7 @@ class ProductSearchEndpointTest {
     MockMvc mockMvc;
 
     @Autowired
-    JdbcClient jdbc;
+    TestCatalog catalog;
 
     @Test
     void summaryContract() throws Exception {
@@ -143,23 +143,7 @@ class ProductSearchEndpointTest {
     }
 
     private long product(String sku, String offCode, String name, String unit, int grams, long cents) {
-        long id = jdbc.sql("""
-                        INSERT INTO product (aldi_sku, off_code, name, category, package_grams, unit, source)
-                        VALUES (:sku, :off, :name, 'Molkerei', :grams, :unit, 'ALDI')
-                        RETURNING id""")
-                .param("sku", sku)
-                .param("off", offCode)
-                .param("name", name)
-                .param("grams", grams)
-                .param("unit", unit)
-                .query(Long.class)
-                .single();
-        jdbc.sql("""
-                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
-                        VALUES (:id, :cents, 'aldi-sued.de', now(), true)""")
-                .param("id", id)
-                .param("cents", cents)
-                .update();
-        return id;
+        return catalog.product(name).sku(sku).offCode(offCode).category("Molkerei").unit(unit).packageGrams(grams)
+                .price(cents).insert();
     }
 }

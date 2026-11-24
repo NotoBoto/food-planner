@@ -21,8 +21,9 @@ class ModuleImportTest {
         assertThat(List.of(
                 "de.foodplanner.domain.search.SearchText",
                 "de.foodplanner.domain.GermanNumberParser",
-                "de.foodplanner.application.package-info",
                 "de.foodplanner.infrastructure.aldi.AldiProductParser",
+                "de.foodplanner.application.PriceScraper",
+                "de.foodplanner.infrastructure.AldiPriceScraper",
                 "de.foodplanner.api.ApiApplication",
                 "de.foodplanner.ingestion.IngestionApplication"))
                 .allMatch(classes::contain);

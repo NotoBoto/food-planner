@@ -9,6 +9,7 @@ import picocli.CommandLine.Spec;
 @Component
 @Command(
         name = "foodplanner-ingestion",
+        subcommands = AldiCommand.class,
         mixinStandardHelpOptions = true,
         version = "foodplanner-ingestion 0.1.0-SNAPSHOT",
         description = "FoodPlanner-Ingestion: scrape, search-off, review, seed export.")
