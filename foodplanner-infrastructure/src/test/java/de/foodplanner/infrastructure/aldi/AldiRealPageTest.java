@@ -9,13 +9,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import de.foodplanner.domain.ScrapedRow;
-import de.foodplanner.domain.ScrapedRowValidator;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import de.foodplanner.domain.Per100g;
 import de.foodplanner.domain.RawProduct;
+import de.foodplanner.domain.ScrapedRow;
+import de.foodplanner.domain.ScrapedRowValidator;
+
+/**
 
 /**
  * Der Aldi-Parser auf echten, unverändert gespeicherten Seiten (§8, §9.3).
@@ -27,7 +29,7 @@ class AldiRealPageTest {
 
     private static final String DIR = "/fixtures/aldi/";
 
-    /** Wie in ingestion.non-food-categories; das Waschmittel liegt unter Haushaltsartikel. */
+    /** Muss später zu ingestion.non-food-categories passen; das Waschmittel liegt unter Haushaltsartikel. */
     private static final ScrapedRowValidator VALIDATOR = new ScrapedRowValidator(Set.of("Haushaltsartikel"));
 
     /**

@@ -8,13 +8,14 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public final class GermanNumberParser {
 
     private static final Pattern NUMBER_WITH_UNIT =
             Pattern.compile("^(\\S+?)(?:\\s+(?:g|kg|mg|ml|l|kj|kcal))?$", Pattern.CASE_INSENSITIVE);
+
     private static final Pattern GERMAN_NUMBER =
-            Pattern.compile("-?(\\d{1,3}(\\.\\d{3})+|\\d+)(,\\d+)?");
+            Pattern.compile("-?([1-9]\\d{0,2}(\\.\\d{3})+|\\d+)(,\\d+)?");
+
     private GermanNumberParser() {
     }
 

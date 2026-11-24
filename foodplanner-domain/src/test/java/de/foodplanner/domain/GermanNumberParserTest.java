@@ -34,13 +34,13 @@ class GermanNumberParserTest {
         assertThatThrownBy(() -> GermanNumberParser.parse("1,2,3")).isInstanceOf(NumberParseException.class);
     }
 
-
     @Test
     void rejectsWrongThousandsGrouping() {
         assertThatThrownBy(() -> GermanNumberParser.parse("12.5")).isInstanceOf(NumberParseException.class);
         assertThatThrownBy(() -> GermanNumberParser.parse("1.2.3")).isInstanceOf(NumberParseException.class);
         assertThatThrownBy(() -> GermanNumberParser.parse("55.3 g")).isInstanceOf(NumberParseException.class);
         assertThatThrownBy(() -> GermanNumberParser.parse("12.34")).isInstanceOf(NumberParseException.class);
+        assertThatThrownBy(() -> GermanNumberParser.parse("0.500")).isInstanceOf(NumberParseException.class);
     }
 
     @Test
