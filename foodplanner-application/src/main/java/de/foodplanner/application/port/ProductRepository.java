@@ -30,4 +30,13 @@ public interface ProductRepository {
      * @return jedes getroffene Produkt genau einmal, in keiner bestimmten Reihenfolge
      */
     List<ProductDetail> details(Collection<ProductKey> keys);
+
+    /**
+     * Die Produkte zu den Schlüsseln für die Listenzusammenfassung (§5.2): nur Produkte mit aktuellem Preis, wie in
+     * der Suche; ein Produkt ohne gilt als nicht im Katalog. Nährwerte ungerundet. Schlüsselabgleich wie bei
+     * {@link #details}; unbekannte Schlüssel fehlen im Ergebnis.
+     *
+     * @return jedes getroffene Produkt genau einmal, in keiner bestimmten Reihenfolge
+     */
+    List<ShoppingListProduct> shoppingListProducts(Collection<ProductKey> keys);
 }
