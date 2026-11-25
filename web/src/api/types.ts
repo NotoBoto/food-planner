@@ -1,32 +1,9 @@
-export type Unit = 'G' | 'ML'
+import type { components } from './schema'
 
-// Wie der Record ProductSummary im Backend: Marke, Kategorie und Nährwerte können fehlen.
-// Nährwerte gibt es laut Spezifikation nur alle vier oder keiner.
-export type ProductSummary = {
-  id: number
-  productKey: string
-  name: string
-  brand: string | null
-  category: string | null
-  packageGrams: number
-  unit: Unit
-  priceCents: number
-  pricePerKgCents: number
-  protein100g: number | null
-  fat100g: number | null
-  carbs100g: number | null
-  kcal100g: number | null
-}
+// Kurznamen für die Typen, die aus openapi.json generiert werden (npm run api:types).
+// Ändert sich ein DTO im Backend, ändern sich diese Typen mit, und der Build zeigt jede betroffene Stelle.
+type Schemas = components['schemas']
 
-export type PagedResult<T> = {
-  items: T[]
-  page: number
-  pageSize: number
-  totalCount: number
-  totalPages: number
-}
-
-export type CatalogInfo = {
-  productCount: number
-  lastScrapedAt: string | null
-}
+export type ProductSummary = Schemas['ProductSummary']
+export type PagedProductSummaries = Schemas['PagedResultProductSummary']
+export type CatalogInfo = Schemas['CatalogInfo']

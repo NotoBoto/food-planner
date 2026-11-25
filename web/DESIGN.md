@@ -12,14 +12,25 @@ statische Dateien, die im Docker-Setup ein einfacher Webserver ausliefert. Diese
 die API durch, genau wie Vite beim Entwickeln. Das Frontend ruft die API also immer über dieselbe
 Adresse auf und braucht weder eine API-URL zur Bauzeit noch CORS.
 
+Die Typen der API kommen aus `web/openapi.json`, die das API-Modul mit springdoc erzeugt.
+`npm run api:types` macht daraus `src/api/schema.d.ts`, das läuft auch nach `npm install` und vor
+jedem Build. Ändert sich ein Endpunkt oder DTO, schlägt der Test `OpenApiSpecTest` fehl. Dann die
+Datei neu schreiben und mit committen, in IntelliJ über die Run Configuration „OpenAPI-Spezifikation
+neu schreiben“ oder auf der Kommandozeile mit
+`./mvnw -pl foodplanner-api -am test -Dtest=OpenApiSpecTest -Dsurefire.failIfNoSpecifiedTests=false -Dopenapi.write=true`.
+
+`apiGet` nimmt Pfad, Query-Parameter und Antwort direkt aus diesen Typen, ein Tippfehler im Pfad oder
+ein unbekannter Parameter fällt also schon beim Bauen auf.
+
+TypeScript bleibt bei 5.9, weil `openapi-typescript` TypeScript 7 noch nicht unterstützt. Vor einem
+Update auf 7 prüfen, ob `npm run api:types` noch läuft. Weil die Typen nach `npm install` entstehen,
+muss `openapi.json` im Dockerfile vor `npm ci` kopiert werden (`COPY package*.json openapi.json ./`).
+
 ## Abweichungen von der Spezifikation
 
 Vorschläge, die das Team noch abnicken muss. Bis dahin gilt die Spezifikation
 (`docs/2026-10-12-foodplanner-design.md`).
 
-- API-Typen zunächst von Hand. Solange es die Endpunkte nicht gibt, lässt sich nichts generieren.
-  Sobald die API ihre `openapi.json` exportiert, werden die Typen wie vorgesehen mit
-  `openapi-typescript` erzeugt.
 - Weniger Frontend-Tests als in der Spezifikation: Vitest für Listenlogik, Formatierung und
   Export/Import, dazu ein paar Komponententests. MSW nur dort, wo es ohne nicht geht.
 
