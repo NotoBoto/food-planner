@@ -425,6 +425,8 @@ POST /api/v1/shopping-list/summary
              // alle Felder Pflicht
     "goals": { "protein": 120, "fat": 70, "carbs": 250,
                "kcal": 2000, "budgetCents": 4000 }     // nullable
+             // jedes Ziel einzeln nullable (null = kein Ziel),
+             // sonst 1..Integer.MAX_VALUE
   }
   → 200 {
     "lines": [ { "productKey", "name", "quantity", "unitPriceCents", "lineTotalCents",
@@ -434,7 +436,8 @@ POST /api/v1/shopping-list/summary
     "totals": { "priceCents", "protein", "fat", "carbs", "kcal",
                 "priceDifferenceCents" },
     "goalProgress": { "proteinPct", "fatPct", "carbsPct",
-                      "kcalPct", "budgetPct" },        // null, wenn goals null ist
+                      "kcalPct", "budgetPct" },        // null, wenn goals null ist;
+                                                       // *Pct null für ein nicht gesetztes Ziel
     "missingProductKeys": [ ]
   }
 ```
@@ -842,6 +845,7 @@ einem neutralen Platzhalter, wenn die Quelle kein Bild hat oder es nicht lädt.
   items: [ { productKey: "aldi:1234567", quantity: 2, name: "Milch 3,5%",
              priceAtAddCents: 109, addedAt: "2026-11-20T10:00:00Z" } ],
   goals: { protein: 120, fat: 70, carbs: 250, kcal: 2000, budgetCents: 4000 } | null
+         // jedes Feld number | null
 }
 ```
 
@@ -849,7 +853,8 @@ einem neutralen Platzhalter, wenn die Quelle kein Bild hat oder es nicht lädt.
 zukünftiges Format wird abgelehnt, statt die aktuelle Liste unbemerkt zu
 beschädigen. Alle Felder einer Zeile sind Pflicht. Pro `productKey` gibt es
 höchstens eine Zeile: Ein Produkt erneut hinzuzufügen erhöht seine Menge um 1,
-`priceAtAddCents` und `addedAt` bleiben.
+`priceAtAddCents` und `addedAt` bleiben. Ein leeres Zielfeld wird als `null`
+gespeichert, nie als `0`; sind alle leer, ist `goals` `null`.
 
 `web/src/limits.ts` spiegelt die Grenzen des Servers (200 Einträge, Menge
 1…1000, Budget innerhalb von `Integer.MAX_VALUE`, Preis 1…100 000 Cent), sodass

@@ -16,8 +16,16 @@
             <artifactId>foodplanner-application</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.github.crawler-commons</groupId>
+            <artifactId>crawler-commons</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -47,6 +55,20 @@
             <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+        </dependency>
+        <!-- Jackson 3 (Spring Boot 4): Version kommt aus der Boot-Dependency-Verwaltung -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -56,13 +78,14 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
-                        <!-- api und ingestion verwenden PostgresTestConfiguration aus den Tests dieses Moduls. -->
+                        <!-- api und ingestion verwenden PostgresTestConfiguration und TestCatalog aus den Tests dieses Moduls. -->
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
                         <configuration>
                             <includes>
                                 <include>de/foodplanner/infrastructure/PostgresTestConfiguration*</include>
+                                <include>de/foodplanner/infrastructure/TestCatalog*</include>
                             </includes>
                         </configuration>
                     </execution>

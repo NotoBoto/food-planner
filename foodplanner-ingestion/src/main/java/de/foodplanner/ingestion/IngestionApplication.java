@@ -3,7 +3,7 @@ package de.foodplanner.ingestion;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "de.foodplanner")
 public class IngestionApplication {
 
     public static void main(String[] args) {

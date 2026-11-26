@@ -5,11 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +23,7 @@ import de.foodplanner.application.port.SearchSort;
 import de.foodplanner.domain.search.SearchText;
 import de.foodplanner.infrastructure.InfrastructureTestApplication;
 import de.foodplanner.infrastructure.PostgresTestConfiguration;
+import de.foodplanner.infrastructure.TestCatalog;
 
 /**
  * {@link JdbcProductSearch} gegen PostgreSQL mit pg_trgm: lexikalische Suche mit Score (§5.5), EAN-Suche, Filter,
@@ -32,7 +31,7 @@ import de.foodplanner.infrastructure.PostgresTestConfiguration;
  * (§4.3).
  */
 @SpringBootTest(classes = InfrastructureTestApplication.class)
-@Import({PostgresTestConfiguration.class, JdbcProductSearch.class})
+@Import({PostgresTestConfiguration.class, TestCatalog.class, JdbcProductSearch.class})
 @Transactional
 class JdbcProductSearchTest {
 
@@ -45,7 +44,8 @@ class JdbcProductSearchTest {
     @Autowired
     JdbcClient jdbc;
 
-    private int skuCounter;
+    @Autowired
+    TestCatalog catalog;
 
     // ---------------------------------------------------------------- Abgleich
 
@@ -415,122 +415,10 @@ class JdbcProductSearchTest {
     }
 
     private void insertPrice(long productId, long cents, boolean current) {
-        jdbc.sql("""
-                        INSERT INTO price (product_id, price_cents, source_name, scraped_at, is_current)
-                        VALUES (:productId, :cents, 'aldi-sued.de', now(), :current)""")
-                .param("productId", productId)
-                .param("cents", cents)
-                .param("current", current)
-                .update();
+        catalog.price(productId, cents, current);
     }
 
-    private ProductBuilder product(String name) {
-        return new ProductBuilder(name, "sku-" + ++skuCounter);
-    }
-
-    /** Legt ein Produkt an, standardmäßig mit aktuellem Preis (sichtbar), 500 g, ohne Nährwerte. */
-    private final class ProductBuilder {
-
-        private final String name;
-        private @Nullable String sku;
-        private @Nullable String offCode;
-        private @Nullable String brand;
-        private @Nullable String category;
-        private int packageGrams = 500;
-        private String unit = "G";
-        private @Nullable Long priceCents = 199L;
-        private @Nullable BigDecimal protein;
-        private @Nullable BigDecimal kcal;
-        private @Nullable BigDecimal fat;
-        private @Nullable BigDecimal carbs;
-
-        ProductBuilder(String name, String sku) {
-            this.name = name;
-            this.sku = sku;
-        }
-
-        ProductBuilder sku(String value) {
-            sku = value;
-            return this;
-        }
-
-        ProductBuilder noSku() {
-            sku = null;
-            return this;
-        }
-
-        ProductBuilder offCode(String value) {
-            offCode = value;
-            return this;
-        }
-
-        ProductBuilder brand(String value) {
-            brand = value;
-            return this;
-        }
-
-        ProductBuilder category(String value) {
-            category = value;
-            return this;
-        }
-
-        ProductBuilder packageGrams(int value) {
-            packageGrams = value;
-            return this;
-        }
-
-        ProductBuilder unit(String value) {
-            unit = value;
-            return this;
-        }
-
-        ProductBuilder price(long cents) {
-            priceCents = cents;
-            return this;
-        }
-
-        ProductBuilder noPrice() {
-            priceCents = null;
-            return this;
-        }
-
-        /** Protein und kcal; Fett und Kohlenhydrate erhalten Platzhalter, denn es gilt „alle vier oder keiner“. */
-        ProductBuilder nutrition(String protein100, String kcal100) {
-            return nutrition(protein100, kcal100, "1.0", "1.0");
-        }
-
-        ProductBuilder nutrition(String protein100, String kcal100, String fat100, String carbs100) {
-            protein = new BigDecimal(protein100);
-            kcal = new BigDecimal(kcal100);
-            fat = new BigDecimal(fat100);
-            carbs = new BigDecimal(carbs100);
-            return this;
-        }
-
-        long insert() {
-            long id = jdbc.sql("""
-                            INSERT INTO product (aldi_sku, off_code, name, brand, category, package_grams, unit,
-                                                 kcal100, protein100, fat100, carbs100, source)
-                            VALUES (:sku, :offCode, :name, :brand, :category, :packageGrams, :unit,
-                                    :kcal, :protein, :fat, :carbs, 'ALDI')
-                            RETURNING id""")
-                    .param("sku", sku, Types.VARCHAR)
-                    .param("offCode", offCode, Types.VARCHAR)
-                    .param("name", name)
-                    .param("brand", brand, Types.VARCHAR)
-                    .param("category", category, Types.VARCHAR)
-                    .param("packageGrams", packageGrams)
-                    .param("unit", unit)
-                    .param("kcal", kcal, Types.NUMERIC)
-                    .param("protein", protein, Types.NUMERIC)
-                    .param("fat", fat, Types.NUMERIC)
-                    .param("carbs", carbs, Types.NUMERIC)
-                    .query(Long.class)
-                    .single();
-            if (priceCents != null) {
-                insertPrice(id, priceCents, true);
-            }
-            return id;
-        }
+    private TestCatalog.ProductBuilder product(String name) {
+        return catalog.product(name);
     }
 }
