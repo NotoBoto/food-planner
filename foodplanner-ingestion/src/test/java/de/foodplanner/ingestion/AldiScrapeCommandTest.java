@@ -26,12 +26,14 @@ class AldiScrapeCommandTest {
     }
 
     @Test
-    void withoutFetchDoesNotLoadPages() {
+    void withoutFetchLoadsTheLatestSnapshot() {
         PriceScraper scraper = mock(PriceScraper.class);
+        when(scraper.scrapeFromLatestSnapshot()).thenReturn(new PriceScraper.ScrapeReport(1, 1, 0, 0));
         AldiScrapeCommand command = new AldiScrapeCommand(scraper);
 
         assertThat(new CommandLine(command).execute()).isZero();
 
+        verify(scraper).scrapeFromLatestSnapshot();
         verify(scraper, org.mockito.Mockito.never()).scrape(org.mockito.ArgumentMatchers.anyBoolean());
     }
 }
