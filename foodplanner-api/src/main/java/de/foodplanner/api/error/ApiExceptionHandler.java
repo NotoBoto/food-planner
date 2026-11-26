@@ -7,23 +7,31 @@ import java.util.TreeMap;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.ErrorResponse;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ElementKind;
 import jakarta.validation.Path;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Übersetzt Fehler der Anwendungsschicht in {@link ProblemDetail}-Antworten (§5, §5.1).
  * Die Validierung selbst liegt nie im Endpunktcode (§3.2), sondern im {@code @Validated}-Handler;
  * hier wird nur ihre Verletzung als 400 mit {@code errors} je Feld ausgegeben.
- *
- * <p>Issue #25 ergänzt diese Klasse um Bindungsfehler, 404 und 409.
  */
 @RestControllerAdvice
 class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     /**
      * Nur Verletzungen an Methodenparametern sind Fehler der Anfrage. Eine Verletzung am Rückgabewert oder an einem
@@ -34,13 +42,82 @@ class ApiExceptionHandler {
         if (exception.getConstraintViolations().isEmpty()
                 || !exception.getConstraintViolations().stream()
                         .allMatch(violation -> isParameterViolation(violation.getPropertyPath()))) {
-            throw exception;
+            return internalError(exception);
         }
         Map<String, List<String>> messages = new TreeMap<>();
         for (ConstraintViolation<?> violation : exception.getConstraintViolations()) {
             messages.computeIfAbsent(lastNode(violation.getPropertyPath()), key -> new ArrayList<>())
                     .add(violation.getMessage());
         }
+        return badRequestWithErrors(messages);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    ProblemDetail resourceNotFound(ResourceNotFoundException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setTitle("Ressource nicht gefunden");
+        return problem;
+    }
+
+    @ExceptionHandler(ResourceConflictException.class)
+    ProblemDetail resourceConflict(ResourceConflictException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT, exception.getMessage());
+        problem.setTitle("Konflikt mit bestehender Ressource");
+        if (exception.getReason() != null) {
+            problem.setProperty("reason", exception.getReason());
+        }
+        return problem;
+    }
+
+    // 1. @Valid auf @RequestBody (Feldfehler + globale Klassenfehler)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ProblemDetail methodArgumentNotValid(MethodArgumentNotValidException exception) {
+        Map<String, List<String>> messages = new TreeMap<>();
+        for (FieldError error : exception.getBindingResult().getFieldErrors()) {
+            String message = error.isBindingFailure() ? "Ungültiger Wert." : error.getDefaultMessage();
+            messages.computeIfAbsent(error.getField(), key -> new ArrayList<>()).add(message);        }
+        for (ObjectError error : exception.getBindingResult().getGlobalErrors()) {
+            messages.computeIfAbsent(error.getObjectName(), key -> new ArrayList<>())
+                    .add(error.getDefaultMessage());
+        }
+        return badRequestWithErrors(messages);
+    }
+
+    // 2. Falscher Datentyp in Pfad- oder Query-Parametern (z. B. "abc" statt Zahl)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail typeMismatch(MethodArgumentTypeMismatchException exception) {
+        return badRequestWithErrors(Map.of(exception.getName(), List.of("Ungültiger Wert.")));
+    }
+
+    // 3. Unlesbares/kaputtes JSON im Body
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail notReadable(HttpMessageNotReadableException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Der Anfragekörper ist ungültig oder fehlt.");
+        problem.setTitle("Ungültige Anfrage");
+        return problem;
+    }
+
+    @ExceptionHandler(Exception.class)
+    ProblemDetail unexpected(Exception exception) {
+        // Spring-eigene Fehler (405, 415, unbekannte URL, ...) behalten ihren Status
+        if (exception instanceof ErrorResponse errorResponse) {
+            return errorResponse.getBody();
+        }
+        return internalError(exception);
+    }
+
+    private static ProblemDetail internalError(Exception exception) {
+        log.error("Unerwarteter Fehler", exception);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR, "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es später erneut.");
+        problem.setTitle("Interner Fehler");
+        return problem;
+    }
+
+    private static ProblemDetail badRequestWithErrors(Map<String, List<String>> messages) {
         Map<String, String> errors = new TreeMap<>();
         messages.forEach((field, list) -> errors.put(field, String.join("; ", list.stream().sorted().toList())));
 
@@ -50,6 +127,7 @@ class ApiExceptionHandler {
         problem.setProperty("errors", errors);
         return problem;
     }
+
 
     private static boolean isParameterViolation(Path path) {
         for (Path.Node node : path) {
