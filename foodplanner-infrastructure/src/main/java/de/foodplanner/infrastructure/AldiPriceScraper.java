@@ -38,14 +38,17 @@ public class AldiPriceScraper implements PriceScraper {
     private final ScrapeProperties properties;
     private final Clock clock;
     private final HttpProperties httpProperties;
+    private final AldiPriceSnapshotStore snapshots;
 
     public AldiPriceScraper(HttpRequester requester, ScrapedPageRepository pages,
-            ScrapeProperties properties, Clock clock, HttpProperties httpProperties) {
+            ScrapeProperties properties, Clock clock, HttpProperties httpProperties,
+            AldiPriceSnapshotStore snapshots) {
         this.requester = requester;
         this.pages = pages;
         this.properties = properties;
         this.clock = clock;
         this.httpProperties = httpProperties;
+        this.snapshots = snapshots;
     }
 
     @Override
@@ -58,7 +61,11 @@ public class AldiPriceScraper implements PriceScraper {
             ensureAllowed(rules, sitemapUri);
             HttpResponse<String> sitemapResponse = requester.get(sitemapUri);
             requireSuccess(sitemapUri, sitemapResponse);
-            List<SiteMapURL> entries = readEntries(sitemapUri, sitemapResponse.body()).stream()
+            List<SiteMapURL> sitemapEntries = List.copyOf(readEntries(sitemapUri, sitemapResponse.body()));
+            List<String> sitemapUrls = sitemapEntries.stream()
+                    .map(entry -> entry.getUrl().toString())
+                    .toList();
+            List<SiteMapURL> entries = sitemapEntries.stream()
                     .limit(properties.aldiMaxProducts())
                     .toList();
             int skipped = 0;
@@ -79,16 +86,19 @@ public class AldiPriceScraper implements PriceScraper {
             }
             int fetched = 0;
             int failed = 0;
+            List<AldiPriceSnapshotStore.SnapshotPage> snapshotPages = new ArrayList<>();
             try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-                List<Future<Boolean>> futures = toFetch.stream()
-                        .map(entry -> executor.submit((Callable<Boolean>) () -> {
+                List<Future<AldiPriceSnapshotStore.SnapshotPage>> futures = toFetch.stream()
+                        .map(entry -> executor.submit((Callable<AldiPriceSnapshotStore.SnapshotPage>) () -> {
                             return fetchAndSave(entry);
                         }))
                         .toList();
                 try {
-                    for (Future<Boolean> future : futures) {
-                        if (future.get()) {
+                    for (Future<AldiPriceSnapshotStore.SnapshotPage> future : futures) {
+                        AldiPriceSnapshotStore.SnapshotPage page = future.get();
+                        if (page != null) {
                             fetched++;
+                            snapshotPages.add(page);
                         } else {
                             failed++;
                         }
@@ -98,7 +108,9 @@ public class AldiPriceScraper implements PriceScraper {
                     throw exception;
                 }
             }
-            return new ScrapeReport(entries.size(), fetched, skipped, failed);
+            ScrapeReport report = new ScrapeReport(entries.size(), fetched, skipped, failed);
+            snapshots.write(snapshotPages, sitemapUrls, report);
+            return report;
         } catch (ExecutionException exception) {
             if (exception.getCause() instanceof IOException ioException) {
                 throw new UncheckedIOException("Aldi-Abruf fehlgeschlagen: " + ioException.getMessage(), ioException);
@@ -119,14 +131,29 @@ public class AldiPriceScraper implements PriceScraper {
         }
     }
 
-    private boolean fetchAndSave(FetchEntry entry) throws IOException, InterruptedException {
+    public ScrapeReport scrapeFromLatestSnapshot() {
+        AldiPriceSnapshotStore.Snapshot snapshot = snapshots.readLatest();
+        for (AldiPriceSnapshotStore.SnapshotPage page : snapshot.pages()) {
+            pages.save(new ScrapedPage(URI.create(page.url()),
+                    page.lastModified() == null ? null : Instant.parse(page.lastModified()),
+                    Instant.parse(page.fetchedAt())));
+        }
+        AldiPriceSnapshotStore.Coverage coverage = snapshot.coverage();
+        return new ScrapeReport(coverage.considered(), coverage.fetched(), coverage.skipped(), coverage.failed());
+    }
+
+    private AldiPriceSnapshotStore.SnapshotPage fetchAndSave(FetchEntry entry)
+            throws IOException, InterruptedException {
         HttpResponse<String> productResponse = requester.get(entry.url());
         if (productResponse.statusCode() == 404 || productResponse.statusCode() == 410) {
-            return false;
+            return null;
         }
         requireSuccess(entry.url(), productResponse);
-        pages.save(new ScrapedPage(entry.url(), entry.lastModified(), clock.instant()));
-        return true;
+        Instant fetchedAt = clock.instant();
+        pages.save(new ScrapedPage(entry.url(), entry.lastModified(), fetchedAt));
+        return new AldiPriceSnapshotStore.SnapshotPage(entry.url().toString(),
+                entry.lastModified() == null ? null : entry.lastModified().toString(),
+                fetchedAt.toString(), productResponse.body());
     }
 
     private record FetchEntry(URI url, Instant lastModified) {
